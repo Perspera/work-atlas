@@ -1,4 +1,4 @@
-# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
+﻿# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1
@@ -10,6 +10,8 @@
 #   3. 原子切换 current 软链并重启服务
 #   4. 健康检查失败自动切回上一个版本
 #   5. 只保留最近 N 个版本
+#
+# 注意：本文件必须保持 UTF-8 with BOM，否则 PowerShell 5 会按 ANSI 解析中文而报错。
 
 param(
     [string]$Target = 'root@8.163.57.96',
@@ -24,9 +26,11 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $localTgz = Join-Path $env:TEMP "wa-release-$stamp.tgz"
+$localSh = Join-Path $env:TEMP "wa-release-$stamp.sh"
 $remoteTgz = "/tmp/wa-release-$stamp.tgz"
+$remoteSh = "/tmp/wa-deploy-$stamp.sh"
 
-Write-Host "== 1/3 打包 ==" -ForegroundColor Cyan
+Write-Host "== 1/4 打包 ==" -ForegroundColor Cyan
 if (Test-Path $localTgz) { Remove-Item $localTgz -Force }
 & tar -czf $localTgz `
     --exclude='./.git' `
@@ -41,11 +45,10 @@ if (Test-Path $localTgz) { Remove-Item $localTgz -Force }
 if ($LASTEXITCODE -ne 0) { throw '打包失败' }
 Write-Host ("  已生成 {0:N1} MB" -f ((Get-Item $localTgz).Length / 1MB))
 
-Write-Host "== 2/3 上传 ==" -ForegroundColor Cyan
+Write-Host "== 2/4 上传 ==" -ForegroundColor Cyan
 & scp -o BatchMode=yes -o StrictHostKeyChecking=no $localTgz "${Target}:$remoteTgz"
 if ($LASTEXITCODE -ne 0) { throw '上传失败' }
 
-Write-Host "== 3/3 切换与校验 ==" -ForegroundColor Cyan
 $remote = @'
 set -u
 APP=__APPDIR__
@@ -92,7 +95,7 @@ for i in $(seq 1 30); do
 done
 
 if [ "$OK" != "1" ]; then
-    echo "健康检查失败，回滚"
+    echo "  健康检查失败，回滚到 ${PREV:-无}"
     if [ -n "$PREV" ] && [ -d "$PREV" ]; then
         ln -sfn "$PREV" "$APP/current"
         systemctl restart "$SVC"
@@ -102,7 +105,6 @@ if [ "$OK" != "1" ]; then
     exit 1
 fi
 
-# 清理旧版本，保留最近 KEEP 个
 CUR=$(readlink -f "$APP/current")
 cd "$APP/releases" || exit 1
 ls -1dt */ 2>/dev/null | tail -n +$((KEEP + 1)) | while read -r d; do
@@ -118,6 +120,7 @@ ls -1dt "$APP"/releases/*/ 2>/dev/null | head -n "$KEEP" | sed "s#^#    #"
 echo -n "  健康检查："
 curl -s "http://127.0.0.1:$PORT/api/health"
 echo
+exit 0
 '@
 
 $remote = $remote.Replace('__APPDIR__', $AppDir)
@@ -126,10 +129,20 @@ $remote = $remote.Replace('__PORT__', [string]$Port)
 $remote = $remote.Replace('__SERVICE__', $Service)
 $remote = $remote.Replace('__KEEP__', [string]$Keep)
 $remote = $remote.Replace('__TGZ__', $remoteTgz)
+$remote = $remote -replace "`r`n", "`n"
 
-$remote | & ssh -o BatchMode=yes -o StrictHostKeyChecking=no $Target 'bash -s'
+# 以 LF + UTF-8(无 BOM) 写远程脚本，避免 bash 解析到 \r
+[System.IO.File]::WriteAllText($localSh, $remote, (New-Object System.Text.UTF8Encoding($false)))
+
+Write-Host "== 3/4 上传部署脚本 ==" -ForegroundColor Cyan
+& scp -o BatchMode=yes -o StrictHostKeyChecking=no $localSh "${Target}:$remoteSh"
+if ($LASTEXITCODE -ne 0) { throw '上传部署脚本失败' }
+
+Write-Host "== 4/4 切换与校验 ==" -ForegroundColor Cyan
+& ssh -o BatchMode=yes -o StrictHostKeyChecking=no $Target "bash $remoteSh; rm -f $remoteSh"
 $code = $LASTEXITCODE
-Remove-Item $localTgz -Force -ErrorAction SilentlyContinue
+
+Remove-Item $localTgz, $localSh -Force -ErrorAction SilentlyContinue
 if ($code -ne 0) { throw "发布失败（退出码 $code），已尝试回滚" }
 
 Write-Host ''
