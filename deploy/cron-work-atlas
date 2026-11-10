@@ -1,0 +1,8 @@
+# 单量与作业进度看板：健康检查定时任务
+# 安装：复制到 /etc/cron.d/work-atlas-health，权限 644
+# 说明：脚本随版本目录走，current 始终指向运行中的版本
+
+SHELL=/bin/bash
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+*/5 * * * * root /bin/bash /opt/work-atlas/current/deploy/healthcheck.sh >/dev/null 2>&1
