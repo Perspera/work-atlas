@@ -7,6 +7,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 
 DEFAULTS = {
+    "env": "dev",
+    "profiles": {},
     "source_dirs": [],
     "source_dir_fallbacks": [],
     "sample_dirs": ["样本"],
@@ -21,6 +23,10 @@ DEFAULTS = {
 }
 
 
+def _env_name(cfg):
+    return (os.environ.get("WORK_ATLAS_ENV") or cfg.get("env") or "dev").strip().lower()
+
+
 def load():
     data = {}
     if os.path.exists(CONFIG_PATH):
@@ -31,6 +37,11 @@ def load():
             data = {}
     cfg = dict(DEFAULTS)
     cfg.update(data or {})
+    env = _env_name(cfg)
+    profiles = cfg.get("profiles") or {}
+    if isinstance(profiles, dict) and isinstance(profiles.get(env), dict):
+        cfg.update(profiles[env])
+    cfg["env"] = env
     return cfg
 
 

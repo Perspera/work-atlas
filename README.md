@@ -355,6 +355,7 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 
 **常用维护**
 - 改端口/数据目录：编辑 `config.json` 后重启。
+- **开发 / 生产数据目录**：`config.json` 的 `profiles` 里定义两套配置——`dev` 用 `Z:\单据登记\测试`，`prod` 用 `/opt/work-atlas/share`。默认走 `dev`；设置环境变量 `WORK_ATLAS_ENV=prod` 启动即切到生产（线上 systemd 已配置该变量）。把 WMS/TMS 导出文件放进对应目录即会被扫描。
 - 看日志：`data/server.log`。
 - 手动重扫：页面「数据源 → 立即扫描」，或命令行 `python ingest.py --scan`。
 - 复算校验：`python ingest.py --check`（打印当日单量/进度数字）。

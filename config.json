@@ -1,10 +1,22 @@
 {
-  "source_dirs": [
-    "Z:\\单据登记\\测试"
-  ],
-  "source_dir_fallbacks": [
-    "\\\\wanyou\\GX1\\单据登记\\测试"
-  ],
+  "env": "dev",
+  "profiles": {
+    "dev": {
+      "source_dirs": [
+        "Z:\\单据登记\\测试"
+      ],
+      "source_dir_fallbacks": [
+        "\\\\wanyou\\GX1\\单据登记\\测试"
+      ]
+    },
+    "prod": {
+      "source_dirs": [
+        "/opt/work-atlas/share"
+      ],
+      "source_dir_fallbacks": [],
+      "port": 18081
+    }
+  },
   "sample_dirs": [],
   "port": 8787,
   "bind": "0.0.0.0",
