@@ -327,7 +327,12 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
   open-browser.ps1      等服务真正就绪后再打开浏览器
   安装开机自启.ps1      注册登录自启 + 放行防火墙 8787（UTF-8 BOM）
   卸载开机自启.ps1      取消自启 + 删防火墙规则
-  server.py            HTTP 服务 + REST API + SSE 实时推送 + 权限网关
+  server.py            HTTP 服务 + 静态页 + 鉴权闸门 + SSE + 启动编排
+  api/runtime.py       进程级共享状态（配置、日志、SSE 广播、ApiError）
+  api/routes.py        98 条接口路由表（方法 + 路径正则 + Handler 方法名）
+  api/*_mixin.py       按领域拆分的接口实现（核心/登记/电池/人效/看板/预警/权限/导出/归档/WMS）
+  api/startup.py       启动与后台任务（布局补种、每日备份、扫描循环、默认口令检测）
+  api/boards_init.py   公共看板与导航页看板初始化
   auth.py              登录、密码(PBKDF2)、会话、权限判定、审计
   perms.py             权限点字典与角色预设
   ingest.py            数据接入（扫描目录 → 解析 → 入库，含拣货人/复核人/组波人）
@@ -346,10 +351,11 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
   data/backup/         每日自动备份 + 升级/清理前备份（保留 30 天）
   data/server.log      运行日志
   样本/                历史回归样本（不参与扫描，可删）
-  tools/tests/         归档/待组波/ERP/出库等单元测试 + 端到端验收（smoke_test）
+  tools/tests/         归档/待组波/ERP/出库等单元测试 + 端到端验收（smoke_test、run_all）
   tools/migrations/    v5~v12 一次性数据升级脚本（已执行完，留作历史记录）
   tools/dev/           样本生成、数据清理、日期校正、前端截图
   tools/wms_download/  外部 WMS 浏览器自动登录/按日期下载（Puppeteer + 任务计划）
+  deploy/              一键发布脚本、日志轮转、nginx 白名单、健康检查与 cron
   requirements.txt     只声明运行环境（纯标准库，无第三方依赖）
 ```
 
