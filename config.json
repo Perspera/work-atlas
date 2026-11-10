@@ -14,7 +14,8 @@
         "/opt/work-atlas/share"
       ],
       "source_dir_fallbacks": [],
-      "port": 18081
+      "port": 18082,
+      "bind": "127.0.0.1"
     }
   },
   "sample_dirs": [],
