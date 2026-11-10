@@ -2,7 +2,7 @@
 """待组波口径单元测试：空波次号行。
 
 用法：
-    python tools/test_pending_detail.py
+    python tools/tests/test_pending_detail.py
 """
 import os
 import shutil
@@ -10,7 +10,7 @@ import sqlite3
 import sys
 import tempfile
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 import db  # noqa: E402

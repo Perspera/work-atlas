@@ -1,0 +1,12 @@
+{
+  "name": "wms-download",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WMS 网页自动登录、按日期导出下载（Puppeteer 驱动本机 Chrome）",
+  "scripts": {
+    "download": "node download_wms.js --config wms.config.json"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
+}

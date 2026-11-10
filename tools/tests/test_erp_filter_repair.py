@@ -2,7 +2,7 @@
 """ERP 明细筛选修复单元测试：临时库副本，不碰线上数据。
 
 用法：
-    python tools/test_erp_filter_repair.py
+    python tools/tests/test_erp_filter_repair.py
 """
 import json
 import os
@@ -11,7 +11,7 @@ import sqlite3
 import sys
 import tempfile
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 import db  # noqa: E402

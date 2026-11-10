@@ -10,8 +10,8 @@
 没有数据的波次（待数据）保持原样，不改。
 
 用法：
-    python tools/fix_registration_dates.py            # 只看会怎么改（dry-run）
-    python tools/fix_registration_dates.py --apply    # 真正执行（会先备份并重建快照）
+    python tools/dev/fix_registration_dates.py            # 只看会怎么改（dry-run）
+    python tools/dev/fix_registration_dates.py --apply    # 真正执行（会先备份并重建快照）
 """
 import os
 import shutil
@@ -20,7 +20,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = os.path.join(BASE, "data", "dashboard.db")
 BACKUP_DIR = os.path.join(BASE, "data", "backup")
 

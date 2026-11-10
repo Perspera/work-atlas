@@ -4,14 +4,14 @@
 可重复执行（幂等）。执行前自动备份数据库。
 
 用法：
-    python tools/upgrade_v5.py
+    python tools/migrations/upgrade_v5.py
 """
 import os
 import shutil
 import sys
 from datetime import datetime
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 

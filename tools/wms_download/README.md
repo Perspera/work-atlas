@@ -13,6 +13,16 @@
 
 以上路径均可在 `wms.config.json` / `run_wms_download.bat` 中改。
 
+如果本机没有现成的 puppeteer-core，可用本目录的 `package.json` 自带安装：
+
+```bat
+cd 看板系统\tools\wms_download
+npm install
+```
+
+装好后把 `PUPPETEER_CORE_PATH` 环境变量指向 `tools\wms_download\node_modules\puppeteer-core` 的**绝对路径**，
+或把该路径写进 `wms.config.json` 的 `puppeteerPath` 字段。
+
 ## 2. 首次配置
 
 ```text

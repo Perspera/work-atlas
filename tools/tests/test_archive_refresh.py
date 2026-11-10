@@ -4,7 +4,7 @@
 不连线上库、不改真实数据。
 
 用法：
-    python tools/test_archive_refresh.py
+    python tools/tests/test_archive_refresh.py
 """
 import os
 import shutil
@@ -12,7 +12,7 @@ import sqlite3
 import sys
 import tempfile
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 import archive_refresh  # noqa: E402

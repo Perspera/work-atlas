@@ -2,7 +2,7 @@
 """扫描文件归档单元测试：数据库副本 + 临时 CSV，不碰线上数据。
 
 用法：
-    python tools/test_source_archive.py
+    python tools/tests/test_source_archive.py
 """
 import os
 import shutil
@@ -10,7 +10,7 @@ import sqlite3
 import sys
 import tempfile
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 import ingest  # noqa: E402

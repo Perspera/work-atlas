@@ -2,7 +2,7 @@
 """出库流程节点文件归档：保存/覆盖/筛选/日期区间/分页/导出。
 
 用法：
-    python tools/test_outbound_archive.py
+    python tools/tests/test_outbound_archive.py
 """
 import os
 import shutil
@@ -10,7 +10,7 @@ import sqlite3
 import sys
 import tempfile
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
 import outbound_archive  # noqa: E402

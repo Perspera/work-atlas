@@ -346,8 +346,11 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
   data/backup/         每日自动备份 + 升级/清理前备份（保留 30 天）
   data/server.log      运行日志
   样本/                历史回归样本（不参与扫描，可删）
-  tools/               样本生成、数据清理、日期校正、v5~v14 升级、归档/待组波单元测试、端到端验收、前端截图
+  tools/tests/         归档/待组波/ERP/出库等单元测试 + 端到端验收（smoke_test）
+  tools/migrations/    v5~v12 一次性数据升级脚本（已执行完，留作历史记录）
+  tools/dev/           样本生成、数据清理、日期校正、前端截图
   tools/wms_download/  外部 WMS 浏览器自动登录/按日期下载（Puppeteer + 任务计划）
+  requirements.txt     只声明运行环境（纯标准库，无第三方依赖）
 ```
 
 **常用维护**
@@ -355,7 +358,7 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 - 看日志：`data/server.log`。
 - 手动重扫：页面「数据源 → 立即扫描」，或命令行 `python ingest.py --scan`。
 - 复算校验：`python ingest.py --check`（打印当日单量/进度数字）。
-- 自检：`python tools/smoke_test.py`（登录/权限/数据范围/取数全链路）。
+- 自检：`python tools/tests/smoke_test.py`（登录/权限/数据范围/取数全链路）。
 
 **备份**：服务每天首次扫描时自动把库备份到 `data/backup/dashboard_YYYYMMDD.db`，保留 30 天（`backup_keep_days`）。恢复时停服务、用备份文件替换 `data/dashboard.db` 即可。
 
@@ -379,8 +382,8 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 现在默认业务日 = **系统当天**，下拉一定包含今天（以及已登记/已存档/有数据的日期），选到历史日期会有黄色提示。
 对已经错位的登记，可用校正工具按"波次生成时间"自动拆回正确日期（先 dry-run 看）：
 ```
-python tools/fix_registration_dates.py            # 只看会怎么改
-python tools/fix_registration_dates.py --apply    # 执行（先备份 + 重建快照/存档）
+python tools/dev/fix_registration_dates.py            # 只看会怎么改
+python tools/dev/fix_registration_dates.py --apply    # 执行（先备份 + 重建快照/存档）
 ```
 
 **存档看不到某一天**

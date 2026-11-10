@@ -2,7 +2,7 @@
 """从现行工作簿生成接入样本（回归验证用）。
 
 用法：
-    python tools/make_samples.py [源工作簿路径]
+    python tools/dev/make_samples.py [源工作簿路径]
 
 产出（写入 样本/ 目录）：
     WMS发运表_<日期>.csv      发运表全列
@@ -14,7 +14,7 @@ import csv
 import os
 import sys
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_DIR = os.path.join(BASE_DIR, "样本")
 
 DEFAULT_SOURCES = [

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """开发期清理：删除测试账号、测试备注，恢复成干净的交付状态。
 
-用法：python tools/cleanup_dev.py
+用法：python tools/dev/cleanup_dev.py
 保留：管理员账号、样本数据、波次登记、经销商映射、公共看板模板。
 """
 import os
 import sqlite3
 import sys
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = os.path.join(BASE, "data", "dashboard.db")
 
 

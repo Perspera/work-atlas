@@ -2,8 +2,8 @@
 """清理开发/演示期的样本数据，只保留 Z 盘真实数据。
 
 用法：
-    python tools/purge_samples.py            # 执行（会先备份）
-    python tools/purge_samples.py --dry-run  # 只看会删什么
+    python tools/dev/purge_samples.py            # 执行（会先备份）
+    python tools/dev/purge_samples.py --dry-run  # 只看会删什么
 
 规则：
  1. 备份 data/dashboard.db 到 data/backup/pre_purge_<时间戳>.db
@@ -17,7 +17,7 @@ import sqlite3
 import sys
 from datetime import datetime
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = os.path.join(BASE, "data", "dashboard.db")
 BACKUP_DIR = os.path.join(BASE, "data", "backup")
 SAMPLE_DATES = ("2026-09-04", "2026-09-05")

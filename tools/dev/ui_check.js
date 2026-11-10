@@ -1,5 +1,5 @@
 /* 前端回归截图：登录后逐页截图，并收集控制台错误。
- * 用法：node tools/ui_check.js [http://127.0.0.1:8787] [admin密码]
+ * 用法：node tools/dev/ui_check.js [http://127.0.0.1:8787] [admin密码]
  * 依赖本机已装的 Chrome（通过 puppeteer-core 驱动）。
  */
 const path = require('path');
@@ -16,7 +16,7 @@ const CHROME_CANDIDATES = [
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8787';
 const PASSWORD = process.argv[3] || 'Admin12345';
-const OUT = path.join(__dirname, '..', 'data', 'ui');
+const OUT = path.join(__dirname, '..', '..', 'data', 'ui');
 
 (async () => {
   const executablePath = CHROME_CANDIDATES.find((p) => fs.existsSync(p));

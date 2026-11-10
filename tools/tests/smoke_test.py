@@ -2,7 +2,7 @@
 """端到端验收：登录/权限/数据范围/订单组台账/存档/组件取数。
 
 用法：
-    python tools/smoke_test.py [http://127.0.0.1:8787] [admin密码]
+    python tools/tests/smoke_test.py [http://127.0.0.1:8787] [admin密码]
 
 说明：
 - 会临时登记 2 个"有数据"的波次 + 1 个"待数据"波次，跑完自动删除登记；
@@ -22,7 +22,7 @@ from http.cookiejar import CookieJar
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8787"
 ADMIN_PWD = sys.argv[2] if len(sys.argv) > 2 else "Admin12345"
 ADMIN_USER = "admin"
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "dashboard.db")
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "dashboard.db")
 
 failures = []
 
@@ -767,7 +767,7 @@ def main():
     # ---------- v5：预警引擎 ----------
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     import alerts as alerts_mod
     import db as db_mod
     import rules as rules_mod

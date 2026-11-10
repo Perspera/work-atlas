@@ -1,4 +1,5 @@
 secrets.local.json
+node_modules/
 profile/
 logs/
 downloads/
