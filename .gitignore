@@ -1,0 +1,45 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ===== Runtime data (业务运行时数据，不入库) =====
+data/dashboard.db
+data/dashboard.db-shm
+data/dashboard.db-wal
+data/server.log
+data/nohup.log
+data/backup/
+data/outbound_archive/
+data/source_archive/
+
+# ===== WMS 自动下载工具运行时产物 =====
+tools/wms_download/profile/
+tools/wms_download/downloads/
+tools/wms_download/logs/
+tools/wms_download/secrets.local.json
+tools/wms_download/*.lock
+
+# ===== 日志与临时文件 =====
+*.log
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# ===== 编辑器 / IDE =====
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.trae/
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Node.js (WMS 下载工具可能用到) =====
+node_modules/
