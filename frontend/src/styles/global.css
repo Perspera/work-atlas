@@ -1,0 +1,28 @@
+:root {
+  --brand: #2f6fed;
+  --surface: #ffffff;
+  --surface-muted: #f5f6f8;
+  --text: #1f2329;
+  --text-muted: #6b7280;
+  --border: rgba(31, 35, 41, 0.12);
+  --radius: 8px;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+}

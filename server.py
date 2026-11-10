@@ -26,7 +26,7 @@ from api.runtime import (
     WEB_DIR,
     CONFIG,
     COOKIE_NAME,
-    STATIC_FILES,
+    STATIC_EXTS,
     MUTATING,
     HUB,
     ApiError,
@@ -212,25 +212,44 @@ class Handler(CoreMixin, DataMixin, BatteryMixin, LaborMixin, DashboardMixin, Al
     # ---------- 静态文件
     def serve_static(self, path):
         name = "index.html" if path in ("/", "") else path.lstrip("/")
-        if name not in STATIC_FILES:
-            self._send(404, b"Not Found", "text/plain; charset=utf-8")
-            return
-        full = os.path.join(WEB_DIR, name)
-        if not os.path.isfile(full):
-            self._send(404, b"Not Found", "text/plain; charset=utf-8")
-            return
+        full = os.path.normpath(os.path.join(WEB_DIR, name))
+        ext = os.path.splitext(name)[1].lower()
+        if not full.startswith(WEB_DIR + os.sep) or not (os.path.isfile(full) and ext in STATIC_EXTS):
+            # 前端路由回退：无扩展名的路径交给入口页（React Router 需要），带扩展名的一律 404
+            if ext:
+                self._send(404, b"Not Found", "text/plain; charset=utf-8")
+                return
+            name = "index.html"
+            full = os.path.join(WEB_DIR, name)
+            ext = ".html"
+            if not os.path.isfile(full):
+                self._send(404, b"Not Found", "text/plain; charset=utf-8")
+                return
         content_types = {
             ".html": "text/html; charset=utf-8",
             ".js": "application/javascript; charset=utf-8",
             ".css": "text/css; charset=utf-8",
             ".svg": "image/svg+xml",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+            ".ico": "image/x-icon",
+            ".woff": "font/woff",
+            ".woff2": "font/woff2",
+            ".json": "application/json; charset=utf-8",
+            ".map": "application/json; charset=utf-8",
+            ".txt": "text/plain; charset=utf-8",
         }
-        ext = os.path.splitext(name)[1].lower()
         with open(full, "rb") as fh:
             data = fh.read()
-        # 入口页每次校验；其余带 ?v= 版本号的静态资源缓存一天，并用 ETag 支持 304
+        # 入口页每次校验；构建产物（文件名带 hash）长期缓存；其余缓存一天，用 ETag 支持 304
         is_entry = name == "index.html"
-        cache_control = "no-cache" if is_entry else "public, max-age=86400"
+        is_hashed = name.startswith("assets/") and "-" in os.path.basename(name)
+        cache_control = "no-cache" if is_entry else (
+            "public, max-age=31536000, immutable" if is_hashed else "public, max-age=86400"
+        )
         etag = '"%s"' % hashlib.md5(data).hexdigest()[:16]
         if not is_entry and self.headers.get("If-None-Match") == etag:
             self._send(304, b"", content_types.get(ext, "application/octet-stream"),

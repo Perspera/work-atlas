@@ -1,0 +1,292 @@
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+
+import { api } from "../lib/api";
+import { num } from "../lib/format";
+import { hasPerm, useApp } from "../lib/store";
+import { Badge, Empty, Loading, PageHead, Panel } from "../components/ui";
+
+interface SourceDir {
+  path: string;
+  ok: boolean;
+}
+
+interface SourceFile {
+  id: number;
+  name: string;
+  kind: string | null;
+  rows: number;
+  status: string;
+  error: string | null;
+  imported_at: string | null;
+  size: number;
+  biz_dates: string;
+  exists: boolean;
+  logical_key: string;
+  content_date_mismatch: boolean;
+  versions?: number;
+}
+
+interface UnmappedDealer {
+  full_name: string;
+  lines: number;
+  amount: number | null;
+}
+
+interface ArchivedDate {
+  biz_date: string;
+  rows: number;
+}
+
+interface SourcesData {
+  dirs: SourceDir[];
+  files: SourceFile[];
+  file_total: number;
+  file_pages: number;
+  file_page: number;
+  file_page_size: number;
+  last_scan: string;
+  last_scan_error: string;
+  scan_sec: number;
+  tms_unmatched: string[];
+  unmapped: UnmappedDealer[];
+  unmapped_count: number;
+  data_range: { min: string | null; max: string | null; days: number };
+  archived_dates: ArchivedDate[];
+}
+
+const STATUS_TEXT: Record<string, { kind: string; label: string }> = {
+  ok: { kind: "ok", label: "正常" },
+  unknown: { kind: "warn", label: "未识别" },
+  partial: { kind: "danger", label: "部分成功" },
+};
+
+function statusOf(status: string) {
+  return STATUS_TEXT[status] || { kind: "danger", label: "失败" };
+}
+
+export default function SourcesPage() {
+  const me = useApp((state) => state.me);
+  const toast = useApp((state) => state.toast);
+  const canScan = hasPerm(me, "action.scan");
+  const [filePage, setFilePage] = useState(1);
+  const [fileGroup, setFileGroup] = useState(false);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["sources", filePage, fileGroup],
+    queryFn: () =>
+      api<SourcesData>("/api/sources", {
+        query: { file_page: filePage, file_page_size: 10, file_group: fileGroup ? "1" : "0" },
+      }),
+  });
+
+  const scan = useMutation({
+    mutationFn: () => api("/api/scan", { method: "POST" }),
+    onSuccess: () => {
+      toast("扫描完成", "ok");
+      void refetch();
+    },
+    onError: (err) => toast((err as Error).message, "err"),
+  });
+
+  const range = data?.data_range;
+
+  return (
+    <>
+      <PageHead
+        title="数据源"
+        sub="把 WMS「发运表」与 TMS「运输单状态」的下载文件丢进下面目录即可，系统自动识别"
+      >
+        {canScan && (
+          <button className="btn btn-primary" disabled={scan.isPending} onClick={() => scan.mutate()}>
+            {scan.isPending ? "扫描中…" : "立即扫描"}
+          </button>
+        )}
+      </PageHead>
+
+      {isLoading && <Loading />}
+      {error && <Empty text={(error as Error).message} />}
+
+      {data && (
+        <>
+          <div className="grid cols-2" style={{ marginBottom: 14 }}>
+            <Panel title="数据源目录">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {data.dirs.map((dir) => (
+                  <div key={dir.path}>
+                    <Badge kind={dir.ok ? "ok" : "danger"}>{dir.ok ? "可达" : "不可达"}</Badge>{" "}
+                    <span className="small mono">{dir.path}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="small" style={{ marginTop: 10 }}>
+                发运数据覆盖：<b>{range?.min || "-"} ~ {range?.max || "-"}</b>（{range?.days || 0} 天）
+              </div>
+              <div className="small muted" style={{ marginTop: 4 }}>
+                每 {data.scan_sec} 秒自动扫描一次 · 上次扫描：{data.last_scan || "-"}
+              </div>
+              {data.last_scan_error && (
+                <div className="small" style={{ marginTop: 6, color: "#c92a2a" }}>
+                  上次扫描告警：{data.last_scan_error}
+                </div>
+              )}
+              {data.archived_dates.length > 0 && (
+                <div className="small muted" style={{ marginTop: 6 }}>
+                  已存档日期：
+                  {data.archived_dates.map((item) => `${item.biz_date}(${item.rows})`).join("、")}
+                </div>
+              )}
+            </Panel>
+
+            <Panel title="运输单未匹配波次">
+              {data.tms_unmatched.length ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {data.tms_unmatched.map((wave) => (
+                    <Badge key={wave} kind="warn">
+                      {wave}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <Empty text="全部波次都能在 TMS 里找到" />
+              )}
+            </Panel>
+          </div>
+
+          <Panel
+            title="文件台账"
+            actions={
+              <label className="check small">
+                <input
+                  type="checkbox"
+                  checked={fileGroup}
+                  onChange={(event) => {
+                    setFileGroup(event.target.checked);
+                    setFilePage(1);
+                  }}
+                />
+                合并同名版本
+              </label>
+            }
+            flush
+          >
+            <div className="table-wrap" style={{ maxHeight: 430 }}>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>文件</th>
+                    <th>类型</th>
+                    <th className="num">行数</th>
+                    <th className="num">版本</th>
+                    <th>内容日期</th>
+                    <th>状态</th>
+                    <th>导入时间</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.files.length === 0 && (
+                    <tr>
+                      <td colSpan={8}>
+                        <Empty text="还没有导入任何文件" />
+                      </td>
+                    </tr>
+                  )}
+                  {data.files.map((file) => {
+                    const state = statusOf(file.status);
+                    return (
+                      <tr key={file.id}>
+                        <td>
+                          {file.name}
+                          {file.exists === false && (
+                            <>
+                              {" "}
+                              <span title="Z 盘已不存在该文件，保留历史台账">
+                                <Badge kind="warn">源文件已移除</Badge>
+                              </span>
+                            </>
+                          )}
+                        </td>
+                        <td>{file.kind || "-"}</td>
+                        <td className="num">{num(file.rows)}</td>
+                        <td className="num">{num(file.versions || 1)}</td>
+                        <td className="small">
+                          {file.biz_dates || "-"}
+                          {file.content_date_mismatch && (
+                            <>
+                              {" "}
+                              <span title="文件名日期不在实际订单日期中">
+                                <Badge kind="warn">日期不一致</Badge>
+                              </span>
+                            </>
+                          )}
+                        </td>
+                        <td>
+                          <Badge kind={state.kind}>{state.label}</Badge>
+                        </td>
+                        <td>{file.imported_at || ""}</td>
+                        <td className="small muted">{file.error || ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="pager">
+              <span>
+                共 {num(data.file_total)} 个文件 · 第 {num(data.file_page)}/{num(data.file_pages)} 页
+              </span>
+              <button
+                className="btn btn-sm"
+                disabled={Number(data.file_page) <= 1}
+                onClick={() => setFilePage(Math.max(1, data.file_page - 1))}
+              >
+                上一页
+              </button>
+              <button
+                className="btn btn-sm"
+                disabled={Number(data.file_page) >= Number(data.file_pages)}
+                onClick={() => setFilePage(data.file_page + 1)}
+              >
+                下一页
+              </button>
+            </div>
+          </Panel>
+
+          <div style={{ height: 14 }} />
+
+          <Panel
+            title="未映射经销商"
+            sub={`共 ${data.unmapped_count} 个，建议补全映射后单量分类才完整`}
+            flush
+          >
+            {data.unmapped.length ? (
+              <div className="table-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>经销商全称</th>
+                      <th className="num">行数</th>
+                      <th className="num">金额(万)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.unmapped.slice(0, 100).map((item) => (
+                      <tr key={item.full_name}>
+                        <td>{item.full_name}</td>
+                        <td className="num">{item.lines}</td>
+                        <td className="num">{item.amount === null ? "-" : num(item.amount, 2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty text="所有经销商都已映射" />
+            )}
+          </Panel>
+        </>
+      )}
+    </>
+  );
+}

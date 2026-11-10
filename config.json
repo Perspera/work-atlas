@@ -19,6 +19,7 @@
     }
   },
   "sample_dirs": [],
+  "web_dir": "web",
   "port": 8787,
   "bind": "0.0.0.0",
   "scan_sec": 60,

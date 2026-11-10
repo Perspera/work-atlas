@@ -12,11 +12,15 @@ import time
 import config_loader
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEB_DIR = os.path.join(BASE_DIR, "web")
 LOG_PATH = os.path.join(BASE_DIR, "data", "server.log")
 CONFIG = config_loader.load()
 COOKIE_NAME = "dash_session"
-STATIC_FILES = {"index.html", "app.js", "charts.js", "grid.js", "styles.css", "favicon.svg"}
+# web_dir 指向哪个前端目录就托管哪个：默认 web（旧版），切成 web/dist 即为 React 版
+WEB_DIR = os.path.normpath(os.path.join(BASE_DIR, CONFIG.get("web_dir") or "web"))
+STATIC_EXTS = {
+    ".html", ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".gif",
+    ".webp", ".ico", ".woff", ".woff2", ".json", ".map", ".txt",
+}
 MUTATING = {"POST", "PUT", "DELETE", "PATCH"}
 
 
