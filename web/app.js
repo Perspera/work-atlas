@@ -132,6 +132,11 @@
         throw new Error("登录已过期，请重新登录");
       }
     }
+    if (res.status === 428) {
+      // 默认口令未修改：重新加载会进入强制改密流程
+      location.reload();
+      return new Promise(function () {});
+    }
     if (!res.ok) {
       throw new Error((data && data.error) || ("请求失败 " + res.status));
     }

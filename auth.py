@@ -82,11 +82,11 @@ def create_user(conn, username, display_name, password, role="viewer", must_chan
     return uid
 
 
-def set_password(conn, user_id, password, must_change=0):
+def set_password(conn, user_id, password, must_change=0, is_default=0):
     pwd_hash, salt = hash_password(password)
     conn.execute(
-        "UPDATE users SET pwd_hash=?, salt=?, must_change_pwd=? WHERE id=?",
-        (pwd_hash, salt, 1 if must_change else 0, user_id),
+        "UPDATE users SET pwd_hash=?, salt=?, must_change_pwd=?, pwd_is_default=? WHERE id=?",
+        (pwd_hash, salt, 1 if must_change else 0, 1 if is_default else 0, user_id),
     )
 
 
@@ -293,6 +293,8 @@ def ensure_initial_admin(conn, username, password, display_name="管理员"):
     if has_users(conn):
         return False
     uid = create_user(conn, username, display_name, password, role="admin", must_change=0)
+    # 首次初始化用的口令视为默认口令：必须先改密才能使用系统
+    conn.execute("UPDATE users SET pwd_is_default=1 WHERE id=?", (uid,))
     conn.execute("INSERT OR IGNORE INTO groups(name, description) VALUES('管理员组','拥有全部权限')")
     gid = conn.execute("SELECT id FROM groups WHERE name='管理员组'").fetchone()["id"]
     conn.execute("INSERT OR IGNORE INTO group_members(group_id, user_id) VALUES(?,?)", (gid, uid))

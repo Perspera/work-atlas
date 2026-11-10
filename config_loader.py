@@ -17,6 +17,7 @@ DEFAULTS = {
     "scan_sec": 60,
     "cutoff_time": "16:00",
     "session_hours": 12,
+    "cookie_secure": "auto",
     "backup_keep_days": 30,
     "allow_setup": True,
     "site_title": "单量与作业进度看板",

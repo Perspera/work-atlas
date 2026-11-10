@@ -12,6 +12,7 @@ data/dashboard.db-wal
 data/server.log
 data/nohup.log
 data/backup/
+data/offsite/
 data/outbound_archive/
 data/source_archive/
 

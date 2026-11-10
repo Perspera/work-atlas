@@ -10,6 +10,7 @@ import json
 import os
 import queue
 import re
+import shutil
 import sys
 import threading
 import tempfile
@@ -434,6 +435,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data:; "
+            "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
+        )
         for key, value in (headers or {}).items():
             self.send_header(key, value)
         self.end_headers()
@@ -588,6 +597,11 @@ class Handler(BaseHTTPRequestHandler):
 
         self.require_login()
 
+        # 默认口令/临时口令必须先改密，避免公网暴露时长期使用弱口令
+        if self.user["pwd_is_default"] or self.user["must_change_pwd"]:
+            if path not in ("/api/logout", "/api/change-password"):
+                raise ApiError(428, "请先修改初始密码")
+
         if method in MUTATING and self.headers.get("X-Dashboard-Client") != "1":
             raise ApiError(403, "缺少客户端标识，拒绝写操作")
 
@@ -725,7 +739,7 @@ class Handler(BaseHTTPRequestHandler):
                 "id": uid,
                 "username": self.user["username"],
                 "display_name": self.user["display_name"],
-                "must_change_pwd": bool(self.user["must_change_pwd"]),
+                "must_change_pwd": bool(self.user["must_change_pwd"] or self.user["pwd_is_default"]),
             },
             "permissions": sorted(auth.effective_permissions(self.conn, uid)),
             "scopes": auth.scope_summary(self.conn, uid),
@@ -735,9 +749,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def set_session_cookie(self, token):
         hours = int(CONFIG.get("session_hours", 12))
+        secure = ""
+        mode = str(CONFIG.get("cookie_secure", "auto")).lower()
+        if mode in ("1", "true", "yes", "on"):
+            secure = "; Secure"
+        elif mode == "auto":
+            proto = (self.headers.get("X-Forwarded-Proto") or "").lower()
+            if proto == "https" or (self.headers.get("X-Forwarded-Ssl") or "").lower() == "on":
+                secure = "; Secure"
         return {
-            "Set-Cookie": "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=%d"
-            % (COOKIE_NAME, token, hours * 3600)
+            "Set-Cookie": "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=%d%s"
+            % (COOKIE_NAME, token, hours * 3600, secure)
         }
 
     def handle_setup(self):
@@ -3287,7 +3309,11 @@ class Handler(BaseHTTPRequestHandler):
 
 # ---------------------------------------------------------------- 后台扫描
 def maybe_backup(conn):
-    """每天把 SQLite 备份一份到 data/backup，保留 backup_keep_days 天。"""
+    """每天把 SQLite 备份一份到 data/backup，保留 backup_keep_days 天。
+
+    - 先写临时文件并做 PRAGMA integrity_check，校验通过才原子替换成正式备份；
+    - 每周日额外复制一份到 data/offsite，保留 28 天。
+    """
     today = db.today_str()
     if db.get_meta(conn, "last_backup_date") == today:
         return
@@ -3296,9 +3322,23 @@ def maybe_backup(conn):
 
         os.makedirs(db.BACKUP_DIR, exist_ok=True)
         target = os.path.join(db.BACKUP_DIR, "dashboard_%s.db" % today.replace("-", ""))
-        dest = sqlite3.connect(target)
-        conn.backup(dest)
-        dest.close()
+        tmp = target + ".tmp"
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        dest = sqlite3.connect(tmp)
+        try:
+            conn.backup(dest)
+            verdict = dest.execute("PRAGMA integrity_check").fetchone()[0]
+        finally:
+            dest.close()
+        if verdict != "ok":
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            log_line("备份校验失败（%s），已丢弃本次备份，保留上一份：%s" % (verdict, target))
+            return
+        os.replace(tmp, target)
         keep = int(CONFIG.get("backup_keep_days", 30) or 30)
         cutoff = time.time() - keep * 86400
         for name in os.listdir(db.BACKUP_DIR):
@@ -3308,6 +3348,19 @@ def maybe_backup(conn):
                     os.remove(path)
             except OSError:
                 pass
+        if time.localtime().tm_wday == 6:
+            offsite = os.path.join(BASE_DIR, "data", "offsite")
+            os.makedirs(offsite, exist_ok=True)
+            shutil.copy2(target, os.path.join(offsite, os.path.basename(target)))
+            off_cutoff = time.time() - 28 * 86400
+            for name in os.listdir(offsite):
+                path = os.path.join(offsite, name)
+                try:
+                    if os.path.getmtime(path) < off_cutoff:
+                        os.remove(path)
+                except OSError:
+                    pass
+            log_line("已生成每周异地副本：%s" % os.path.join(offsite, os.path.basename(target)))
         db.set_meta(conn, "last_backup_date", today)
         log_line("数据库已备份：%s" % target)
     except Exception:  # noqa: BLE001
@@ -3367,6 +3420,21 @@ def scanner_loop():
         time.sleep(max(15, int(CONFIG.get("scan_sec", 60))))
 
 
+def flag_default_passwords(conn):
+    """一次性把仍在使用交付默认口令的账号标记为必须改密。"""
+    if db.get_meta(conn, "default_pwd_flag_v1") == "1":
+        return 0
+    flagged = 0
+    for row in conn.execute("SELECT id, pwd_hash, salt FROM users").fetchall():
+        if auth.verify_password("Admin12345", row["pwd_hash"], row["salt"]):
+            conn.execute("UPDATE users SET pwd_is_default=1 WHERE id=?", (row["id"],))
+            flagged += 1
+    db.set_meta(conn, "default_pwd_flag_v1", "1")
+    if flagged:
+        log_line("检测到 %d 个账号仍在使用默认口令，已要求登录后改密" % flagged)
+    return flagged
+
+
 def main(argv):
     global CONFIG
     port = CONFIG.get("port", 8787)
@@ -3378,6 +3446,7 @@ def main(argv):
 
     db.init_db()
     conn = db.connect()
+    flag_default_passwords(conn)
     ensure_default_dashboards(conn)
     ensure_page_dashboards(conn)
     ensure_page_layouts_v6(conn)

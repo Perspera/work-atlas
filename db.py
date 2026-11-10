@@ -640,6 +640,7 @@ def _migrate(conn):
     _ensure_column(conn, "ship_lines", "check_person", "TEXT")
     _ensure_column(conn, "ship_lines", "wave_person", "TEXT")
     _ensure_column(conn, "dashboards", "page_key", "TEXT")
+    _ensure_column(conn, "users", "pwd_is_default", "INTEGER DEFAULT 0")
     # v18：dealers.xlsx 增加「动力电池」sheet，旧文件台账会因未变化跳过，强制重扫一次
     try:
         if get_meta(conn, "battery_dealer_import_v1") != "1":
