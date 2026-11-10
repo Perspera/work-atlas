@@ -45,6 +45,29 @@ WITH cand AS (
   %s
   WHERE %s
   GROUP BY s.order_date, s.group_no, s.part_code
+),
+dealer_keys AS (
+  SELECT c.dealer_full AS dealer_full,
+         MAX(dm.short_name) AS short_name
+  FROM cand c
+  LEFT JOIN dealer_map dm ON dm.full_name = c.dealer_full
+  GROUP BY c.dealer_full
+),
+dealer_matched AS (
+  SELECT k.dealer_full AS dealer_full,
+         b.dealer_full AS map_dealer_full,
+         ROW_NUMBER() OVER (
+           PARTITION BY k.dealer_full
+           ORDER BY (b.dealer_full = k.dealer_full) DESC, b.dealer_full
+         ) AS rn
+  FROM dealer_keys k
+  JOIN battery_dealer_map b
+    ON b.dealer_full = k.dealer_full
+    OR (k.short_name IS NOT NULL AND k.short_name <> '' AND b.dealer_short = k.short_name)
+    OR (k.short_name IS NOT NULL AND k.short_name <> '' AND b.dealer_full = k.short_name)
+),
+dealer_pick AS (
+  SELECT dealer_full, map_dealer_full FROM dealer_matched WHERE rn = 1
 )
 SELECT c.*,
        COALESCE(bp_name.part_name, c.line_part_name, '-') AS part_name,
@@ -56,14 +79,8 @@ SELECT c.*,
 FROM cand c
 %s
 LEFT JOIN dealer_map dm ON dm.full_name = c.dealer_full
-LEFT JOIN battery_dealer_map d ON d.rowid = (
-  SELECT b.rowid FROM battery_dealer_map b
-  WHERE b.dealer_full = c.dealer_full
-     OR (dm.short_name IS NOT NULL AND dm.short_name <> '' AND b.dealer_short = dm.short_name)
-     OR (dm.short_name IS NOT NULL AND dm.short_name <> '' AND b.dealer_full = dm.short_name)
-  ORDER BY (b.dealer_full = c.dealer_full) DESC, b.dealer_full
-  LIMIT 1
-)
+LEFT JOIN dealer_pick pk ON pk.dealer_full = c.dealer_full
+LEFT JOIN battery_dealer_map d ON d.dealer_full = pk.map_dealer_full
 LEFT JOIN battery_confirmations cf
        ON cf.order_date = c.order_date AND cf.group_no = c.group_no AND cf.part_code = c.part_code
 """ % (join_parts, " AND ".join(where), outer_parts)
@@ -278,8 +295,8 @@ def import_parts(conn, path):
     return inserted
 
 
-def export_csv(conn, date_from="", date_to="", q="", status=""):
-    data = rows(conn, date_from, date_to, q, status, 1, 200000, True)
+def export_csv(conn, date_from="", date_to="", q="", status="", with_amount=True):
+    data = rows(conn, date_from, date_to, q, status, 1, 200000, with_amount)
     out = io.StringIO()
     headers = ["登记日期", "订单组号", "经销商", "备件编码", "备件名称", "行数", "数量", "金额",
                "拣货行数", "复核行数", "库区", "单据类型", "是否免运费", "区域", "承运商", "送达城市", "地址", "状态"]

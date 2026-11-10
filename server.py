@@ -133,7 +133,7 @@ class Handler(CoreMixin, DataMixin, BatteryMixin, LaborMixin, DashboardMixin, Al
         if body:
             try:
                 self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 pass
 
     def json_out(self, obj, status=200, headers=None):
@@ -200,7 +200,7 @@ class Handler(CoreMixin, DataMixin, BatteryMixin, LaborMixin, DashboardMixin, Al
                 self.serve_static(path)
         except ApiError as exc:
             self.error_out(exc.status, exc.message)
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
         except Exception as exc:  # noqa: BLE001
             log_line("未处理异常 %s %s\n%s" % (method, self.path, traceback.format_exc()))
