@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import GridLayout, { WidthProvider, type Layout as RGLLayout } from "react-grid-layout";
@@ -10,8 +10,10 @@ import { useBizDate } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
 import { Empty, Loading, Modal } from "../components/ui";
 import { WidgetCard, WidgetGrid, type Layout, type LayoutWidget } from "../features/dashboard";
+import { WidgetConfigModal, type WidgetCatalog } from "../features/widget-config";
 
 const Grid = WidthProvider(GridLayout);
+const HISTORY_LIMIT = 50;
 
 interface PageData {
   key: string;
@@ -34,17 +36,6 @@ interface DashData {
   updated_at: string;
 }
 
-interface Preset {
-  key: string;
-  group: string;
-  title: string;
-  desc: string;
-  type: LayoutWidget["type"];
-  spec: Record<string, unknown>;
-  w: number;
-  h: number;
-}
-
 export default function BoardPage() {
   const { kind = "page", ref = "" } = useParams();
   const navigate = useNavigate();
@@ -56,9 +47,14 @@ export default function BoardPage() {
   const [widgets, setWidgets] = useState<LayoutWidget[]>([]);
   const [name, setName] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const [titleEdit, setTitleEdit] = useState<LayoutWidget | null>(null);
-  const [titleDraft, setTitleDraft] = useState("");
+  const [past, setPast] = useState<LayoutWidget[][]>([]);
+  const [future, setFuture] = useState<LayoutWidget[][]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [configEdit, setConfigEdit] = useState<LayoutWidget | null>(null);
+
+  // widgetsRef 为唯一事实源：拖动过程高频更新，事件回调里也能读到最新值
+  const widgetsRef = useRef<LayoutWidget[]>([]);
+  const dragBeforeRef = useRef<LayoutWidget[]>([]);
 
   const pageQuery = useQuery({
     queryKey: ["board", "page", ref],
@@ -72,7 +68,7 @@ export default function BoardPage() {
   });
   const catalog = useQuery({
     queryKey: ["widget-catalog"],
-    queryFn: () => api<{ presets: Preset[] }>("/api/widget-catalog"),
+    queryFn: () => api<WidgetCatalog>("/api/widget-catalog"),
   });
 
   const source = isPage ? pageQuery.data : dashQuery.data;
@@ -86,8 +82,11 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (!source || loaded) return;
-    setWidgets(source.layout?.widgets || []);
+    widgetsRef.current = source.layout?.widgets || [];
+    setWidgets(widgetsRef.current);
     setName(source.name);
+    setPast([]);
+    setFuture([]);
     setLoaded(true);
   }, [source, loaded]);
 
@@ -101,11 +100,112 @@ export default function BoardPage() {
     setLoaded(false);
   };
 
-  const addPreset = (preset: Preset) => {
-    const maxY = widgets.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+  // ---- 历史提交（结构性变更统一入口）
+  const commit = (next: LayoutWidget[]) => {
+    const before = widgetsRef.current;
+    if (JSON.stringify(next) === JSON.stringify(before)) return;
+    setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), before]);
+    setFuture([]);
+    widgetsRef.current = next;
+    setWidgets(next);
+  };
+
+  const applyLayout = (next: RGLLayout[]) => {
+    const merged = widgetsRef.current.map((item) => {
+      const found = next.find((entry) => entry.i === item.id);
+      return found ? { ...item, x: found.x, y: found.y, w: found.w, h: found.h } : item;
+    });
+    widgetsRef.current = merged;
+    setWidgets(merged);
+  };
+
+  const undo = () => {
+    if (!past.length) return;
+    const prev = past[past.length - 1];
+    const current = widgetsRef.current;
+    setPast((p) => p.slice(0, -1));
+    setFuture((f) => [current, ...f]);
+    widgetsRef.current = prev;
+    setWidgets(prev);
+  };
+
+  const redo = () => {
+    if (!future.length) return;
+    const next = future[0];
+    const current = widgetsRef.current;
+    setFuture((f) => f.slice(1));
+    setPast((p) => [...p, current]);
+    widgetsRef.current = next;
+    setWidgets(next);
+  };
+
+  // 拖动/缩放结束才进历史；拖动过程由 onLayoutChange 高频更新
+  const rememberDrag = () => {
+    dragBeforeRef.current = widgetsRef.current;
+  };
+  const finishDrag = () => {
+    const before = dragBeforeRef.current;
+    if (JSON.stringify(widgetsRef.current) === JSON.stringify(before)) return;
+    setPast((p) => [...p.slice(-(HISTORY_LIMIT - 1)), before]);
+    setFuture([]);
+  };
+
+  const tidy = () => {
+    // first-fit：按 y/x 排序后依次放进 12 列画布的第一个空位
+    const sorted = [...widgetsRef.current].sort((a, b) => a.y - b.y || a.x - b.x);
+    const placed: LayoutWidget[] = [];
+    for (const widget of sorted) {
+      let spot = { x: 0, y: 0 };
+      for (let y = 0; ; y++) {
+        let found = false;
+        for (let x = 0; x + widget.w <= 12; x++) {
+          const taken = placed.some(
+            (p) => p.x < x + widget.w && p.x + p.w > x && p.y < y + widget.h && p.y + p.h > y,
+          );
+          if (!taken) {
+            spot = { x, y };
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      placed.push({ ...widget, ...spot });
+    }
+    if (JSON.stringify(placed) === JSON.stringify(widgetsRef.current)) {
+      toast("已经是紧凑的，无需整理", "ok");
+      return;
+    }
+    commit(placed);
+    toast("已整理布局", "ok");
+  };
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y（输入框聚焦时跳过）
+  useEffect(() => {
+    if (!canEdit) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const tag = (document.activeElement?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const key = (event.key || "").toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+      } else if (key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  const addPreset = (preset: WidgetCatalog["presets"][number]) => {
+    const maxY = widgetsRef.current.reduce((max, item) => Math.max(max, item.y + item.h), 0);
     const widget: LayoutWidget = {
       id: `${preset.key}-${Date.now()}`,
-      type: preset.type,
+      type: preset.type as LayoutWidget["type"],
       title: preset.title,
       spec: preset.spec,
       x: 0,
@@ -113,19 +213,33 @@ export default function BoardPage() {
       w: preset.w || 6,
       h: preset.h || 4,
     };
-    setWidgets([...widgets, widget]);
+    commit([...widgetsRef.current, widget]);
     setPaletteOpen(false);
   };
 
   const duplicate = (widget: LayoutWidget) => {
-    setWidgets([
-      ...widgets,
+    commit([
+      ...widgetsRef.current,
       { ...widget, id: `${widget.id}-copy-${Date.now()}`, title: `${widget.title} 副本`, y: widget.y + 1 },
     ]);
   };
 
+  const remove = (widget: LayoutWidget) => {
+    commit(widgetsRef.current.filter((item) => item.id !== widget.id));
+  };
+
+  const applyConfig = (next: { title: string; spec: Record<string, unknown>; text?: string }) => {
+    if (!configEdit) return;
+    commit(
+      widgetsRef.current.map((item) =>
+        item.id === configEdit.id ? { ...item, title: next.title, spec: next.spec, text: next.text } : item,
+      ),
+    );
+    setConfigEdit(null);
+  };
+
   const save = async () => {
-    const layoutPayload = { widgets };
+    const layoutPayload = { widgets: widgetsRef.current };
     try {
       if (isPage) {
         await api(`/api/pages/${ref}`, { method: "PUT", body: { target: "personal", layout: layoutPayload } });
@@ -143,7 +257,7 @@ export default function BoardPage() {
     if (!window.confirm("把当前布局发布为公共默认？已自建布局的同事保留自己的。")) return;
     try {
       if (isPage) {
-        await api(`/api/pages/${ref}`, { method: "PUT", body: { target: "public", layout: { widgets } } });
+        await api(`/api/pages/${ref}`, { method: "PUT", body: { target: "public", layout: { widgets: widgetsRef.current } } });
       } else {
         await api(`/api/dashboards/${ref}/publish`, { method: "POST" });
       }
@@ -176,13 +290,16 @@ export default function BoardPage() {
           <h1 className="page-title">{isPage ? `编辑导航页看板 · ${name}` : `编辑专题看板 · ${name}`}</h1>
           <div className="page-sub">
             {canEdit
-              ? "拖动标题移动组件，拖动右下角缩放；改完点「保存」。组件详细配置向导将在 P4-4 提供。"
+              ? "拖动标题移动组件，拖动右下角缩放；支持 Ctrl+Z 撤销 / Ctrl+Y 重做。"
               : "当前账号对该看板只有查看权限"}
           </div>
         </div>
         <div className="toolbar">
           {canEdit && (
             <>
+              <button className="btn btn-sm" disabled={!past.length} onClick={undo} title="撤销 (Ctrl+Z)">撤销</button>
+              <button className="btn btn-sm" disabled={!future.length} onClick={redo} title="重做 (Ctrl+Y)">重做</button>
+              <button className="btn btn-sm" onClick={tidy} title="把所有组件往上紧凑排列">整理布局</button>
               <button className="btn btn-sm" onClick={() => setPaletteOpen(true)}>添加组件</button>
               <button className="btn btn-sm btn-primary" onClick={save}>保存</button>
               {canPublish && <button className="btn btn-sm" onClick={publish}>发布</button>}
@@ -203,16 +320,16 @@ export default function BoardPage() {
             cols={12}
             rowHeight={60}
             margin={[12, 12]}
+            compactType={null}
+            preventCollision
+            allowOverlap={false}
             draggableHandle=".dg-drag"
             draggableCancel=".no-drag"
-            onLayoutChange={(next) => {
-              setWidgets((prev) =>
-                prev.map((item) => {
-                  const found = next.find((entry) => entry.i === item.id);
-                  return found ? { ...item, x: found.x, y: found.y, w: found.w, h: found.h } : item;
-                }),
-              );
-            }}
+            onDragStart={rememberDrag}
+            onResizeStart={rememberDrag}
+            onDragStop={finishDrag}
+            onResizeStop={finishDrag}
+            onLayoutChange={applyLayout}
           >
             {widgets.map((widget) => (
               <div key={widget.id}>
@@ -223,19 +340,13 @@ export default function BoardPage() {
                     <div className="toolbar no-drag" style={{ gap: 2 }}>
                       <button
                         className="btn btn-sm btn-ghost"
-                        title="修改标题"
-                        onClick={() => {
-                          setTitleEdit(widget);
-                          setTitleDraft(widget.title);
-                        }}
+                        title="配置数据集/维度/指标/筛选"
+                        onClick={() => setConfigEdit(widget)}
                       >
                         设置
                       </button>
                       <button className="btn btn-sm btn-ghost" onClick={() => duplicate(widget)}>复制</button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => setWidgets(widgets.filter((item) => item.id !== widget.id))}
-                      >
+                      <button className="btn btn-sm btn-danger" onClick={() => remove(widget)}>
                         删除
                       </button>
                     </div>
@@ -254,7 +365,7 @@ export default function BoardPage() {
           {catalog.isLoading && <Loading />}
           <div className="preset-grid">
             {Object.entries(
-              (catalog.data?.presets || []).reduce<Record<string, Preset[]>>((groups, preset) => {
+              (catalog.data?.presets || []).reduce<Record<string, WidgetCatalog["presets"]>>((groups, preset) => {
                 (groups[preset.group] = groups[preset.group] || []).push(preset);
                 return groups;
               }, {}),
@@ -276,35 +387,14 @@ export default function BoardPage() {
         </Modal>
       )}
 
-      {titleEdit && (
-        <Modal
-          title="修改组件标题"
-          onClose={() => setTitleEdit(null)}
-          footer={
-            <>
-              <button className="btn" onClick={() => setTitleEdit(null)}>取消</button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setWidgets(
-                    widgets.map((item) =>
-                      item.id === titleEdit.id ? { ...item, title: titleDraft.trim() || item.title } : item,
-                    ),
-                  );
-                  setTitleEdit(null);
-                }}
-              >
-                确定
-              </button>
-            </>
-          }
-        >
-          <div className="field">
-            <label>标题</label>
-            <input className="input" value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
-          </div>
-          <div className="small muted">数据集/维度/指标配置向导将在 P4-4 提供，当前可先用「添加组件」里的预设。</div>
-        </Modal>
+      {configEdit && catalog.data && (
+        <WidgetConfigModal
+          widget={configEdit}
+          catalog={catalog.data}
+          date={date}
+          onClose={() => setConfigEdit(null)}
+          onApply={applyConfig}
+        />
       )}
     </>
   );

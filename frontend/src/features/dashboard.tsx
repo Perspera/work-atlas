@@ -22,11 +22,11 @@ export interface Layout {
   widgets: LayoutWidget[];
 }
 
-interface WidgetSeries {
+type WidgetSeries = {
   name: string;
   values: number[];
   metric?: string;
-}
+};
 
 interface WidgetColumn {
   key: string;
@@ -34,7 +34,7 @@ interface WidgetColumn {
   align?: string;
 }
 
-type WidgetData =
+export type WidgetData =
   | { kind: "value"; value: number | string; metric: string; label: string; unit?: string; delta?: number | null; prev_value?: number | string; prev_date?: string }
   | { kind: "series"; categories: string[]; series: WidgetSeries[]; dimension?: string }
   | { kind: "funnel"; items: { label: string; value: number }[] }
@@ -42,6 +42,25 @@ type WidgetData =
   | { kind: "text"; text: string };
 
 const ROW_HEIGHT = 60;
+
+/** 组件级配色：默认单色，马卡龙/多巴胺为可选色系（与旧版 COLOR_SCHEMES 一致）。 */
+const COLOR_SCHEMES: Record<string, string[]> = {
+  "": ["#1d5fbf"],
+  macaron: ["#b25c7a", "#4a7ba7", "#4f8f6a", "#b3832e", "#7c67a8", "#3f8e93"],
+  dopamine: ["#ff5d8f", "#ff9f1c", "#e0b100", "#2ec4b6", "#3a86ff", "#8e44ad"],
+};
+
+export function paletteFor(spec?: Record<string, unknown>): string[] | null {
+  if (!spec) return null;
+  const scheme = spec.color_scheme as string | undefined;
+  const single = spec.color as string | undefined;
+  if (!scheme && !single) return null;
+  const colors = COLOR_SCHEMES[scheme || ""] || null;
+  if (single) {
+    return colors ? [single, ...colors.filter((c) => c !== single)] : [single];
+  }
+  return colors;
+}
 
 function formatMetric(metric: string, value: number | string | null | undefined) {
   if (value === null || value === undefined) return "-";
@@ -51,11 +70,21 @@ function formatMetric(metric: string, value: number | string | null | undefined)
   return num(value, Number.isInteger(value) ? 0 : 2);
 }
 
-function SeriesBody({ data, type }: { data: Extract<WidgetData, { kind: "series" }>; type: string }) {
+function SeriesBody({
+  data,
+  type,
+  palette,
+  showValues,
+}: {
+  data: Extract<WidgetData, { kind: "series" }>;
+  type: string;
+  palette?: string[] | null;
+  showValues?: boolean;
+}) {
   if (type === "pie") {
     const first = data.series[0];
     const rows = data.categories.map((label, index) => ({ label, value: Number(first?.values[index] || 0) }));
-    return <DonutChart rows={rows} height="100%" />;
+    return <DonutChart rows={rows} height="100%" palette={palette || undefined} showValues={showValues} />;
   }
   if (type === "progress") {
     const rateIndex = data.series.findIndex((item) => item.metric === "out_rate");
@@ -89,9 +118,9 @@ function SeriesBody({ data, type }: { data: Extract<WidgetData, { kind: "series"
     );
   }
   if (type === "line") {
-    return <LineChart categories={data.categories} series={data.series} height="100%" />;
+    return <LineChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} />;
   }
-  return <BarChart categories={data.categories} series={data.series} height="100%" />;
+  return <BarChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} />;
 }
 
 function RowsBody({ data }: { data: Extract<WidgetData, { kind: "rows" }> }) {
@@ -129,13 +158,23 @@ function RowsBody({ data }: { data: Extract<WidgetData, { kind: "rows" }> }) {
   );
 }
 
-export function WidgetBody({ type, data }: { type: LayoutWidget["type"]; data: WidgetData }) {
+export function WidgetBody({
+  type,
+  data,
+  palette,
+  showValues,
+}: {
+  type: LayoutWidget["type"];
+  data: WidgetData;
+  palette?: string[] | null;
+  showValues?: boolean;
+}) {
   if (data.kind === "text") return <div className="small">{data.text}</div>;
   if (data.kind === "value") {
     return (
       <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
         <div>
-          <div className="kpi-value" style={{ marginTop: 0 }}>
+          <div className="kpi-value" style={{ marginTop: 0, color: palette?.[0] }}>
             {formatMetric(data.metric, data.value)}
             {data.unit && <span className="kpi-unit">{data.unit}</span>}
           </div>
@@ -149,9 +188,9 @@ export function WidgetBody({ type, data }: { type: LayoutWidget["type"]; data: W
       </div>
     );
   }
-  if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" />;
+  if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" palette={palette || undefined} />;
   if (data.kind === "rows") return <RowsBody data={data} />;
-  if (data.kind === "series") return <SeriesBody data={data} type={type} />;
+  if (data.kind === "series") return <SeriesBody data={data} type={type} palette={palette} showValues={showValues} />;
   return null;
 }
 
@@ -174,6 +213,8 @@ export function WidgetCard({
         body: { widget_type: widget.type, date, spec: widget.spec, text: widget.text, mode },
       }),
   });
+  const palette = paletteFor(widget.spec);
+  const showValues = widget.spec?.show_values !== false;
 
   return (
     <section className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -192,7 +233,7 @@ export function WidgetCard({
       >
         {widget.type === "kpi" && <div className="kpi-label">{widget.title}</div>}
         <div style={{ flex: 1, minHeight: 0 }}>
-          {isLoading ? <Loading /> : error ? <div className="widget-error">{(error as Error).message}</div> : data ? <WidgetBody type={widget.type} data={data} /> : null}
+          {isLoading ? <Loading /> : error ? <div className="widget-error">{(error as Error).message}</div> : data ? <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} /> : null}
         </div>
       </div>
     </section>

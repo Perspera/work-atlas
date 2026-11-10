@@ -36,6 +36,14 @@ if "%ERRORLEVEL%"=="0" (
     exit /b 0
 )
 
+rem ---- web_dir points at a missing build? tell the user how to fix it ----
+powershell -NoProfile -Command "try{ $c = Get-Content -Raw -LiteralPath '%~dp0config.json' | ConvertFrom-Json }catch{ exit 0 }; if(-not $c.web_dir){ exit 0 }; $p = Join-Path '%~dp0' (Join-Path $c.web_dir 'index.html'); if(-not (Test-Path -LiteralPath $p)){ Write-Host ('  [WARN] config.json web_dir = ' + $c.web_dir + ' but index.html was not found.'); Write-Host '  Fix: cd frontend; npm install; npm run build'; Write-Host '  Or : set web_dir back to "web" in config.json'; exit 1 } else { exit 0 }"
+if "%ERRORLEVEL%"=="1" (
+    echo.
+    pause
+    exit /b 1
+)
+
 echo  Starting service, browser will open automatically...
 start "" /min powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0open-browser.ps1"
 

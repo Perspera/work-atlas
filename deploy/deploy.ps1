@@ -30,7 +30,12 @@ $localSh = Join-Path $env:TEMP "wa-release-$stamp.sh"
 $remoteTgz = "/tmp/wa-release-$stamp.tgz"
 $remoteSh = "/tmp/wa-deploy-$stamp.sh"
 
-Write-Host "== 1/4 打包 ==" -ForegroundColor Cyan
+Write-Host "== 1/4 构建前端并打包 ==" -ForegroundColor Cyan
+
+# React 前端产物（web/dist）由本地构建产生，线上不装 Node
+& npm --prefix (Join-Path $repo 'frontend') run build
+if ($LASTEXITCODE -ne 0) { throw '前端构建失败（npm run build）' }
+
 if (Test-Path $localTgz) { Remove-Item $localTgz -Force }
 & tar -czf $localTgz `
     --exclude='./.git' `
@@ -40,7 +45,6 @@ if (Test-Path $localTgz) { Remove-Item $localTgz -Force }
     --exclude='./__pycache__' `
     --exclude='./tools/__pycache__' `
     --exclude='./frontend/node_modules' `
-    --exclude='./web/dist' `
     -C $repo .
 if ($LASTEXITCODE -ne 0) { throw '打包失败' }
 Write-Host ("  已生成 {0:N1} MB" -f ((Get-Item $localTgz).Length / 1MB))

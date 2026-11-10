@@ -1,4 +1,4 @@
-﻿import ReactEChartsCore from "echarts-for-react/lib/core";
+import ReactEChartsCore from "echarts-for-react/lib/core";
 import * as echarts from "echarts/core";
 import { BarChart as EBar, FunnelChart as EFunnel, LineChart as ELine, PieChart as EPie } from "echarts/charts";
 import { GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
@@ -13,9 +13,9 @@ echarts.use([EBar, ELine, EPie, EFunnel, GridComponent, TooltipComponent, Legend
 
 const PALETTE = ["#1d5fbf", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0e7490"];
 
-function baseOption(categories: string[], series: Series[], horizontal?: boolean) {
+function baseOption(categories: string[], series: Series[], horizontal?: boolean, palette?: string[], showValues?: boolean) {
   return {
-    color: PALETTE,
+    color: palette?.length ? palette : PALETTE,
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     legend: { right: 8, top: 0, type: "scroll", textStyle: { color: "#5b6472" } },
     grid: { left: 12, right: 16, top: 34, bottom: 8, containLabel: true },
@@ -41,6 +41,7 @@ function baseOption(categories: string[], series: Series[], horizontal?: boolean
       data: item.values,
       barMaxWidth: 26,
       emphasis: { focus: "series" },
+      label: { show: Boolean(showValues), position: "top", color: "#5b6472" },
     })),
   };
 }
@@ -50,11 +51,15 @@ export function BarChart({
   series,
   height = 240,
   horizontal,
+  palette,
+  showValues,
 }: {
   categories: string[];
   series: Series[];
   height?: number | string;
   horizontal?: boolean;
+  palette?: string[];
+  showValues?: boolean;
 }) {
   if (!categories.length) return <div className="empty">暂无数据</div>;
   return (
@@ -62,7 +67,7 @@ export function BarChart({
       echarts={echarts}
       notMerge
       style={{ height }}
-      option={baseOption(categories, series, horizontal)}
+      option={baseOption(categories, series, horizontal, palette, showValues)}
     />
   );
 }
@@ -71,13 +76,17 @@ export function LineChart({
   categories,
   series,
   height = 240,
+  palette,
+  showValues,
 }: {
   categories: string[];
   series: Series[];
   height?: number | string;
+  palette?: string[];
+  showValues?: boolean;
 }) {
   if (!categories.length) return <div className="empty">暂无数据</div>;
-  const option = baseOption(categories, series);
+  const option = baseOption(categories, series, false, palette, showValues);
   const lineOption = {
     ...option,
     series: series.map((item) => ({
@@ -87,6 +96,7 @@ export function LineChart({
       smooth: true,
       symbolSize: 6,
       areaStyle: { opacity: 0.08 },
+      label: { show: Boolean(showValues), position: "top", color: "#5b6472" },
     })),
   };
   return <ReactEChartsCore echarts={echarts} notMerge style={{ height }} option={lineOption} />;
@@ -95,9 +105,13 @@ export function LineChart({
 export function DonutChart({
   rows,
   height = 240,
+  palette,
+  showValues,
 }: {
   rows: { label: string; value: number }[];
   height?: number | string;
+  palette?: string[];
+  showValues?: boolean;
 }) {
   if (!rows.length) return <div className="empty">暂无数据</div>;
   return (
@@ -106,7 +120,7 @@ export function DonutChart({
       notMerge
       style={{ height }}
       option={{
-        color: PALETTE,
+        color: palette?.length ? palette : PALETTE,
         tooltip: { trigger: "item", formatter: "{b}: {c}（{d}%）" },
         legend: { orient: "vertical", right: 6, top: "middle", type: "scroll" },
         series: [
@@ -115,7 +129,11 @@ export function DonutChart({
             radius: ["46%", "70%"],
             center: ["38%", "52%"],
             avoidLabelOverlap: true,
-            label: { show: false },
+            label: {
+              show: Boolean(showValues),
+              formatter: "{b} {c}",
+              color: "#5b6472",
+            },
             data: rows.map((row) => ({ name: row.label, value: row.value })),
           },
         ],
@@ -127,9 +145,11 @@ export function DonutChart({
 export function FunnelChart({
   rows,
   height = 260,
+  palette,
 }: {
   rows: { label: string; value: number }[];
   height?: number | string;
+  palette?: string[];
 }) {
   if (!rows.length) return <div className="empty">暂无数据</div>;
   return (
@@ -138,7 +158,7 @@ export function FunnelChart({
       notMerge
       style={{ height }}
       option={{
-        color: PALETTE,
+        color: palette?.length ? palette : PALETTE,
         tooltip: { trigger: "item", formatter: "{b}: {c}" },
         series: [
           {
