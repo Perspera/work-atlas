@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>WMS 下载测试页</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px; color: #222; }
+    .box { max-width: 640px; padding: 24px; border: 1px solid #ddd; border-radius: 8px; }
+    label { display: block; margin: 12px 0 4px; }
+    input, button { font-size: 14px; padding: 7px 10px; }
+    button { cursor: pointer; }
+    table { border-collapse: collapse; width: 100%; margin-top: 14px; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+    .hidden { display: none; }
+    .user-name { float: right; color: #0a7; }
+    .empty { color: #999; margin-top: 12px; }
+    .err { color: #c00; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div id="login-view">
+      <h2>WMS 测试登录</h2>
+      <label>账号</label>
+      <input id="username" autocomplete="username">
+      <label>密码</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <button id="login" type="button">登录</button>
+      <div id="login-error" class="err hidden"></div>
+    </div>
+
+    <div id="main-view" class="hidden">
+      <span class="user-name">测试用户</span>
+      <h2>出库流程节点时间跟踪（测试）</h2>
+      <label>订单日期</label>
+      <input id="orderDate" name="orderDate" type="date">
+      <button id="search" type="button">查询</button>
+
+      <div id="result-box" class="hidden">
+        <table>
+          <thead><tr><th>订单日期</th><th>波次号</th><th>外部单号</th><th>状态</th></tr></thead>
+          <tbody id="result-body"></tbody>
+        </table>
+        <button id="download" type="button" style="margin-top:12px">导出</button>
+      </div>
+      <div id="empty" class="empty hidden">没有查询到数据</div>
+    </div>
+  </div>
+
+  <script>
+    const loginView = document.getElementById('login-view');
+    const mainView = document.getElementById('main-view');
+    const loginError = document.getElementById('login-error');
+    const resultBox = document.getElementById('result-box');
+    const empty = document.getElementById('empty');
+    let currentDate = '';
+
+    document.getElementById('login').addEventListener('click', function () {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      if (username === 'demo' && password === 'Demo12345') {
+        loginView.classList.add('hidden');
+        mainView.classList.remove('hidden');
+      } else {
+        loginError.textContent = '用户名或密码错误';
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('search').addEventListener('click', function () {
+      currentDate = document.getElementById('orderDate').value;
+      empty.classList.add('hidden');
+      if (!currentDate || currentDate === '1900-01-01') {
+        resultBox.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+      const row = document.createElement('tr');
+      row.className = 'row';
+      ['订单日期', '波次号', '外部单号', '状态'].forEach(function (_, index) {
+        const td = document.createElement('td');
+        td.textContent = [currentDate, 'TEST-WAVE-001', 'TEST-WMS-001', '已全部发运'][index];
+        row.appendChild(td);
+      });
+      document.getElementById('result-body').innerHTML = '';
+      document.getElementById('result-body').appendChild(row);
+      resultBox.classList.remove('hidden');
+    });
+
+    document.getElementById('download').addEventListener('click', function () {
+      const csv = '\uFEFF订单日期,波次号,外部单号,状态\r\n' +
+        currentDate + ',TEST-WAVE-001,TEST-WMS-001,已全部发运\r\n';
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '出库测试-' + currentDate + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "source_dirs": [
+    "Z:\\单据登记\\测试"
+  ],
+  "source_dir_fallbacks": [
+    "\\\\wanyou\\GX1\\单据登记\\测试"
+  ],
+  "sample_dirs": [],
+  "port": 8787,
+  "bind": "0.0.0.0",
+  "scan_sec": 60,
+  "cutoff_time": "16:00",
+  "session_hours": 12,
+  "backup_keep_days": 30,
+  "allow_setup": true,
+  "site_title": "单量与作业进度看板"
+}

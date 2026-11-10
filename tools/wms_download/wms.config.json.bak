@@ -1,0 +1,72 @@
+{
+  "url": "https://wms.wanyouauto.com.cn/portal.do",
+  "queryUrl": "",
+  "dateMode": "today",
+  "dateFormat": "YYYY-MM-DD",
+  "timezone": "Asia/Shanghai",
+  "headless": true,
+  "downloadDir": "downloads/tmp",
+  "deliverDir": "Z:\\单据登记\\测试",
+  "overwriteDeliver": true,
+  "keepDownloadCopy": true,
+  "timeoutMs": 180000,
+  "retries": 0,
+  "manualLogin": false,
+  "login": {
+    "skip": true,
+    "success": "#cl-top-buttons-exit",
+    "assumeLoggedInIfNoForm": true,
+    "username": "",
+    "password": "",
+    "submit": "",
+    "captcha": ""
+  },
+  "preSteps": [],
+  "query": {
+    "dateInput": "input[name=\"订单日期\"]",
+    "dateFormat": "YYYY-MM-DD",
+    "search": {
+      "text": "查询"
+    },
+    "result": "#customize_report_view_grid_180 tr.jqgrow",
+    "emptyText": "没有记录",
+    "loadingText": "读取中",
+    "download": {
+      "text": "导出"
+    },
+    "downloadWaitMs": 180000,
+    "exportDialog": {
+      "grid": "#g_plat_customize_report_export_settings",
+      "allDataText": "所有过滤数据",
+      "confirmText": "导出",
+      "functionName": "exportData",
+      "captureForm": true
+    }
+  },
+  "validation": {
+    "extensions": [
+      ".xlsx",
+      ".xls",
+      ".csv"
+    ],
+    "minBytes": 1024,
+    "requiredHeaders": [
+      "订单日期",
+      "波次号"
+    ]
+  },
+  "relativeDays": 0,
+  "schedule": {
+    "mode": "interval",
+    "intervalMinutes": 10,
+    "startTime": "08:00",
+    "endTime": "21:00",
+    "times": [
+      "08:30"
+    ]
+  },
+  "portalWaitMs": 120000,
+  "formWaitMs": 90000,
+  "menuItemText": "出库流程节点时间跟踪",
+  "fixedDate": ""
+}

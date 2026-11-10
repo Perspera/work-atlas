@@ -1,0 +1,5 @@
+secrets.local.json
+profile/
+logs/
+downloads/
+.wms_download.lock

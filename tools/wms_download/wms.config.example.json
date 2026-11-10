@@ -1,0 +1,68 @@
+{
+  "url": "https://wms.example.com/",
+  "queryUrl": "",
+  "dateMode": "yesterday",
+  "dateFormat": "YYYY-MM-DD",
+  "timezone": "Asia/Shanghai",
+  "headless": true,
+  "downloadDir": "downloads/tmp",
+  "deliverDir": "Z:\\单据登记\\测试",
+  "overwriteDeliver": true,
+  "keepDownloadCopy": true,
+  "timeoutMs": 60000,
+  "retries": 0,
+  "manualLogin": false,
+  "login": {
+    "username": "#username",
+    "password": "#password",
+    "submit": "button[type=submit]",
+    "success": ".user-name",
+    "captcha": ""
+  },
+  "preSteps": [
+    {
+      "type": "click",
+      "text": "出库管理"
+    },
+    {
+      "type": "click",
+      "text": "出库流程节点时间跟踪"
+    }
+  ],
+  "query": {
+    "dateInput": "input[name=orderDate]",
+    "dateEndInput": "",
+    "search": {
+      "text": "查询"
+    },
+    "result": ".el-table__row",
+    "empty": ".el-table__empty-text",
+    "download": {
+      "text": "导出"
+    },
+    "downloadFetchUrl": "",
+    "downloadWaitMs": 120000
+  },
+  "validation": {
+    "extensions": [
+      ".xlsx",
+      ".xls",
+      ".csv"
+    ],
+    "minBytes": 1024,
+    "requiredHeaders": [
+      "订单日期",
+      "波次号"
+    ]
+  },
+  "relativeDays": 0,
+  "schedule": {
+    "mode": "interval",
+    "intervalMinutes": 10,
+    "startTime": "08:00",
+    "endTime": "21:00",
+    "times": [
+      "08:30"
+    ]
+  }
+}
