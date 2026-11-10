@@ -4,9 +4,53 @@
 前端只提交「数据集 + 维度 + 指标 + 筛选」的声明式 spec，后端用白名单映射成 SQL，
 所有用户输入都走参数化，绝不拼接任意列名或表达式。
 """
+import json
+import threading
+import time
+
 import alerts
 import battery
+import db
 import rules
+
+# ---------------------------------------------------------------- 结果缓存
+# 键里带数据版本号：任何写操作都会自增版本，缓存立即失效；
+# 30 秒 TTL 只是兜住并发写入后的短暂窗口，避免读到旧值。
+_CACHE = {}
+_CACHE_LOCK = threading.Lock()
+_CACHE_TTL = 30.0
+_CACHE_MAX = 512
+
+
+def _cache_key(kind, biz_date, user_id, spec, with_amount, archive, version):
+    return json.dumps(
+        [kind, version, biz_date, user_id, bool(with_amount), bool(archive), spec],
+        sort_keys=True,
+        ensure_ascii=False,
+        default=str,
+    )
+
+
+def _cache_get(key):
+    now = time.time()
+    with _CACHE_LOCK:
+        item = _CACHE.get(key)
+        if not item:
+            return None
+        ts, value = item
+        if now - ts > _CACHE_TTL:
+            _CACHE.pop(key, None)
+            return None
+        _CACHE[key] = (ts, value)
+        return dict(value)
+
+
+def _cache_put(key, value):
+    with _CACHE_LOCK:
+        if len(_CACHE) >= _CACHE_MAX and key not in _CACHE:
+            oldest = min(_CACHE.items(), key=lambda kv: kv[1][0])[0]
+            _CACHE.pop(oldest, None)
+        _CACHE[key] = (time.time(), value)
 
 # ---------------------------------------------------------------- 数据集
 DATASETS = {
@@ -793,8 +837,18 @@ def _battery_payload(conn, biz_date, with_amount=True):
 
 # ---------------------------------------------------------------- 对外入口
 def run(conn, biz_date, user_id, spec, with_amount=True, archive=False):
-    """执行组件取数，返回统一结构。"""
+    """执行组件取数，返回统一结构（带缓存，按数据版本失效）。"""
     spec = normalize_spec(spec)
+    key = _cache_key("run", biz_date, user_id, spec, with_amount, archive, db.get_version(conn))
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+    data = _run_uncached(conn, biz_date, user_id, spec, with_amount, archive)
+    _cache_put(key, data)
+    return data
+
+
+def _run_uncached(conn, biz_date, user_id, spec, with_amount=True, archive=False):
     dataset = spec["dataset"]
 
     if dataset == "trend":
@@ -851,8 +905,18 @@ def run(conn, biz_date, user_id, spec, with_amount=True, archive=False):
 
 
 def single_value(conn, biz_date, user_id, spec, with_amount=True, archive=False):
-    """KPI 组件：单一聚合值。"""
+    """KPI 组件：单一聚合值（带缓存，按数据版本失效）。"""
     spec = normalize_spec(spec)
+    key = _cache_key("kpi", biz_date, user_id, spec, with_amount, archive, db.get_version(conn))
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
+    data = _single_value_uncached(conn, biz_date, user_id, spec, with_amount, archive)
+    _cache_put(key, data)
+    return data
+
+
+def _single_value_uncached(conn, biz_date, user_id, spec, with_amount=True, archive=False):
     dataset = spec["dataset"]
     metric = spec["metrics"][0]
     unit = METRIC_META.get(metric, {}).get("unit", "")

@@ -5,6 +5,7 @@
       python server.py --port 9000
 """
 import csv
+import hashlib
 import io
 import json
 import os
@@ -430,11 +431,12 @@ class Handler(BaseHTTPRequestHandler):
             return forwarded.split(",")[0].strip()
         return self.client_address[0] if self.client_address else ""
 
-    def _send(self, status, body=b"", content_type="application/json; charset=utf-8", headers=None):
+    def _send(self, status, body=b"", content_type="application/json; charset=utf-8", headers=None,
+              cache_control="no-store"):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache_control)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "SAMEORIGIN")
         self.send_header("Referrer-Policy", "same-origin")
@@ -544,7 +546,16 @@ class Handler(BaseHTTPRequestHandler):
         ext = os.path.splitext(name)[1].lower()
         with open(full, "rb") as fh:
             data = fh.read()
-        self._send(200, data, content_types.get(ext, "application/octet-stream"))
+        # 入口页每次校验；其余带 ?v= 版本号的静态资源缓存一天，并用 ETag 支持 304
+        is_entry = name == "index.html"
+        cache_control = "no-cache" if is_entry else "public, max-age=86400"
+        etag = '"%s"' % hashlib.md5(data).hexdigest()[:16]
+        if not is_entry and self.headers.get("If-None-Match") == etag:
+            self._send(304, b"", content_types.get(ext, "application/octet-stream"),
+                       {"ETag": etag}, cache_control=cache_control)
+            return
+        self._send(200, data, content_types.get(ext, "application/octet-stream"),
+                   {"ETag": etag}, cache_control=cache_control)
 
     # ---------- 鉴权
     def authenticated(self):
