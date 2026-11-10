@@ -36,6 +36,7 @@ tools/wms_download/*.lock
 *.sublime-project
 *.sublime-workspace
 .trae/
+.trae-html-share-packages/
 
 # ===== 操作系统 =====
 .DS_Store
