@@ -48,3 +48,7 @@ node_modules/
 
 # ===== React 前端构建产物 =====
 dist/
+
+# 本地脚手架（隔离走查副本、验证脚本、比对产物）
+.scratch/
+.workbuddy-ai/
