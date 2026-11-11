@@ -3,8 +3,10 @@
 import json
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+from backend import paths
+
+BASE_DIR = paths.BASE_DIR
+CONFIG_PATH = paths.CONFIG_PATH
 
 DEFAULTS = {
     "env": "dev",

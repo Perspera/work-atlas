@@ -4,8 +4,8 @@
 - 手动：页面「存档今日 / 重新存档」（force=True 覆盖）
 - 自动：跨天补档（已登记的旧业务日，若还没有存档且有数据，只补缺不覆盖）
 """
-import db
-import rules
+from backend.core import db
+from backend.domain import rules
 
 
 def collect(conn, biz_date):

@@ -105,8 +105,8 @@ def main(argv):
 
     try:
         sys.path.insert(0, BASE)
-        import db as dbmod
-        import rules
+        from backend.core import db as dbmod
+        from backend.domain import rules
 
         conn.row_factory = sqlite3.Row
         rules.rebuild_snapshots(conn)

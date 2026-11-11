@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """线路超时预警"""
 
-import alerts
-import db
+from backend.domain import alerts
+from backend.core import db
 import re
-import rules
+from backend.domain import rules
 
 from api.runtime import HUB, ApiError
 

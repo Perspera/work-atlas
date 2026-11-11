@@ -9,8 +9,8 @@
 """
 from datetime import datetime, timedelta
 
-import db
-import rules
+from backend.core import db
+from backend.domain import rules
 
 DEFAULT_DEADLINE_AM = "12:00"
 DEFAULT_DEADLINE_PM = "17:00"

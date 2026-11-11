@@ -6,10 +6,10 @@
 - 人工作业量：本轮新增/变更行涉及的拣货/复核日期 → 当日人效快照覆盖
 - 另外始终执行「跨天补缺」（已有逻辑），保证新日期也有归档
 """
-import archive
-import battery_archive
-import db
-import labor_archive
+from backend.archives import archive
+from backend.archives import battery_archive
+from backend.core import db
+from backend.archives import labor_archive
 
 
 def affected_biz_dates(conn, waves):

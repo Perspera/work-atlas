@@ -7,8 +7,8 @@
 import json
 from datetime import datetime
 
-import auth
-import db
+from backend.core import auth
+from backend.core import db
 
 BASE_LINES = """
 SELECT s.id AS line_id,

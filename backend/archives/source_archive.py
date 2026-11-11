@@ -16,11 +16,13 @@ import re
 import shutil
 from datetime import date, datetime, time, timedelta
 
-import db
+from backend.core import db
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-ARCHIVE_DIR = os.path.join(DATA_DIR, "source_archive")
+from backend import paths
+
+BASE_DIR = paths.BASE_DIR
+DATA_DIR = paths.DATA_DIR
+ARCHIVE_DIR = paths.SOURCE_ARCHIVE_DIR
 PREVIEW_ROWS = 100
 KEEP_DAYS = 7
 STORAGE_META_KEY = "source_archive_storage_v1"

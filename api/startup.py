@@ -10,13 +10,13 @@ import sqlite3
 import time
 import traceback
 
-import alerts
-import archive_refresh
-import auth
-import db
-import ingest
-import source_archive
-import templates
+from backend.domain import alerts
+from backend.archives import archive_refresh
+from backend.core import auth
+from backend.core import db
+from backend.collect import ingest
+from backend.archives import source_archive
+from backend.core import templates
 
 from api.runtime import BASE_DIR, CONFIG, HUB, log_line
 

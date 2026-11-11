@@ -127,13 +127,13 @@ def main(argv):
     print("已移动 %d 条登记；受影响日期：%s" % (len(plan), "、".join(sorted(affected))))
 
     sys.path.insert(0, BASE)
-    import db as dbmod
-    import rules
+    from backend.core import db as dbmod
+    from backend.domain import rules
 
     rules.rebuild_snapshots(conn)
     dbmod.bump_version(conn)
     try:
-        import archive
+        from backend.archives import archive
 
         done = archive.auto_archive(conn)
         if done:

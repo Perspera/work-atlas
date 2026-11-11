@@ -5,8 +5,8 @@
 """
 import json
 
-import db
-import templates
+from backend.core import db
+from backend.core import templates
 
 
 def ensure_default_dashboards(conn):

@@ -15,11 +15,13 @@ import re
 import tempfile
 from datetime import date, datetime, timedelta
 
-import db
+from backend.core import db
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-ARCHIVE_DIR = os.path.join(DATA_DIR, "outbound_archive")
+from backend import paths
+
+BASE_DIR = paths.BASE_DIR
+DATA_DIR = paths.DATA_DIR
+ARCHIVE_DIR = paths.OUTBOUND_ARCHIVE_DIR
 ROWS_FILE = os.path.join(ARCHIVE_DIR, "rows.jsonl.gz")
 LEGACY_META = "outbound_archive_legacy_migrated_v1"
 PAGE_SIZE = 50
@@ -661,7 +663,7 @@ def backfill_history(conn):
                 continue
             path = os.path.join(folder, name)
             try:
-                import ingest
+                from backend.collect import ingest
                 sheets = ingest.read_any(path)
                 result = save_from_sheets(conn, path, sheets, biz_date=day)
                 if result.get("archived"):

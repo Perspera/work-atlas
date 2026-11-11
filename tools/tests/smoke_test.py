@@ -897,9 +897,9 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    import alerts as alerts_mod
-    import db as db_mod
-    import rules as rules_mod
+    from backend.domain import alerts as alerts_mod
+    from backend.core import db as db_mod
+    from backend.domain import rules as rules_mod
     conn2 = db_mod.connect()
     # 预警只对"今天"生效（历史业务日会被判为 closed），所以这里用今天判断
     alert_date = db_mod.today_str()

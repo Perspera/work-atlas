@@ -16,9 +16,9 @@ sys.path.insert(0, BASE)
 
 
 def main():
-    import db
-    import alerts
-    import templates
+    from backend.core import db
+    from backend.domain import alerts
+    from backend.core import templates
 
     db_path = os.path.join(BASE, "data", "dashboard.db")
     if not os.path.exists(db_path):
@@ -37,7 +37,7 @@ def main():
     print("表结构已升级（人员列 / 页面槽位 / 预警 / 工时校正）")
 
     # 页面默认看板
-    import server
+    from backend import server
 
     server.ensure_page_dashboards(conn)
     rows = conn.execute(

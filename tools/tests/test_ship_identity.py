@@ -8,8 +8,8 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
-import db  # noqa: E402
-import ingest  # noqa: E402
+from backend.core import db  # noqa: E402
+from backend.collect import ingest  # noqa: E402
 
 FAILS = []
 

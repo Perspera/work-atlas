@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """登记类数据：波次、订单组台账、经销商映射"""
 
-import archive
+from backend.archives import archive
 import csv
-import db
-import ingest
+from backend.core import db
+from backend.collect import ingest
 import io
 import json
 import os
 import re
-import rules
+from backend.domain import rules
 import tempfile
 import urllib.parse
 

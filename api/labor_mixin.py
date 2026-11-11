@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """人工作业量、工时设置与校正"""
 
-import db
-import labor_archive
+from backend.core import db
+from backend.archives import labor_archive
 import re
-import rules
+from backend.domain import rules
 
 from api.runtime import HUB, ApiError
 

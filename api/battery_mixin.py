@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """动力电池登记与归档"""
 
-import battery
-import battery_archive
-import db
+from backend.domain import battery
+from backend.archives import battery_archive
+from backend.core import db
 import json
 import os
 import re

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """用户、用户组、权限、数据范围与审计"""
 
-import auth
-import db
+from backend.core import auth
+from backend.core import db
 import json
-import perms
+from backend.core import perms
 import re
 
 from api.runtime import ApiError

@@ -15,8 +15,8 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
-import archive_refresh  # noqa: E402
-import db  # noqa: E402
+from backend.archives import archive_refresh  # noqa: E402
+from backend.core import db  # noqa: E402
 
 FAILS = []
 
@@ -67,7 +67,7 @@ def main():
         # 确保两个日期都有归档，便于观察是否被覆盖
         for day in (target, other):
             conn.execute("DELETE FROM daily_archive WHERE biz_date=?", (day,))
-        import archive
+        from backend.archives import archive
 
         archive.snapshot(conn, target, None, force=True)
         archive.snapshot(conn, other, None, force=True)
@@ -108,7 +108,7 @@ def main():
         if pick_day and pick_day["d"]:
             day = pick_day["d"]
             conn.execute("DELETE FROM labor_archive WHERE biz_date=?", (day,))
-            import labor_archive
+            from backend.archives import labor_archive
 
             labor_archive.snapshot(conn, day, None, force=True)
             conn.execute(

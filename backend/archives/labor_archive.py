@@ -4,8 +4,8 @@
 - 手动：人工作业量页「存档本日 / 重新存档」（force=True 覆盖）
 - 自动：跨天补档（有人员作业数据、但还没有归档的旧作业日期，只补缺不覆盖）
 """
-import db
-import rules
+from backend.core import db
+from backend.domain import rules
 
 
 def collect(conn, biz_date, user_id=None):

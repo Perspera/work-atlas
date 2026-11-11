@@ -8,10 +8,10 @@ import json
 import threading
 import time
 
-import alerts
-import battery
-import db
-import rules
+from backend.domain import alerts
+from backend.domain import battery
+from backend.core import db
+from backend.domain import rules
 
 # ---------------------------------------------------------------- 结果缓存
 # 键里带数据版本号：任何写操作都会自增版本，缓存立即失效；

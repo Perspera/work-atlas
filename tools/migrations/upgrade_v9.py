@@ -16,10 +16,10 @@ sys.path.insert(0, BASE)
 
 
 def main():
-    import archive_refresh
-    import db
-    import rules
-    import server
+    from backend.archives import archive_refresh
+    from backend.core import db
+    from backend.domain import rules
+    from backend import server
 
     db_path = os.path.join(BASE, "data", "dashboard.db")
     if not os.path.exists(db_path):

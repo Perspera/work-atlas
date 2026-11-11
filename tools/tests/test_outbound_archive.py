@@ -13,7 +13,7 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
-import outbound_archive  # noqa: E402
+from backend.archives import outbound_archive  # noqa: E402
 
 FAILS = []
 

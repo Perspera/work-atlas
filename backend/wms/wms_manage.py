@@ -10,8 +10,10 @@ import time
 import traceback
 from datetime import datetime, timedelta
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-AUTO_DIR = os.path.join(BASE_DIR, "tools", "wms_download")
+from backend import paths
+
+BASE_DIR = paths.BASE_DIR
+AUTO_DIR = paths.WMS_TOOLS_DIR
 CONFIG_PATH = os.path.join(AUTO_DIR, "wms.config.json")
 BACKUP_PATH = CONFIG_PATH + ".bak"
 LOG_DIR = os.path.join(AUTO_DIR, "logs")

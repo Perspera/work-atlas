@@ -5,8 +5,8 @@ import io
 import os
 import re
 
-import db
-import ingest
+from backend.core import db
+from backend.collect import ingest
 
 
 def _has_parts(conn):

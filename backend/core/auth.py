@@ -7,8 +7,8 @@ import re
 import secrets
 from datetime import datetime, timedelta
 
-import db
-import perms
+from backend.core import db
+from backend.core import perms
 
 PBKDF2_ROUNDS = 200_000
 LOCK_WINDOW_SEC = 300

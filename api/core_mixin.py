@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """核心看板：元信息、总览、进度、单量、趋势、订单组查询、数据源与扫描"""
 
-import archive
-import archive_refresh
-import db
-import ingest
+from backend.archives import archive
+from backend.archives import archive_refresh
+from backend.core import db
+from backend.collect import ingest
 import json
 import os
 import re
-import rules
-import source_archive
+from backend.domain import rules
+from backend.archives import source_archive
 import traceback
 
 from api.runtime import CONFIG, HUB, ApiError, log_line

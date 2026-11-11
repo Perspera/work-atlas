@@ -9,10 +9,10 @@ import sys
 import threading
 import time
 
-import config_loader
+from backend import config_loader, paths
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOG_PATH = os.path.join(BASE_DIR, "data", "server.log")
+BASE_DIR = paths.BASE_DIR
+LOG_PATH = paths.LOG_PATH
 CONFIG = config_loader.load()
 COOKIE_NAME = "dash_session"
 # 前端只有一份：React 版（frontend/ 源码，构建产物到 dist/），由 Python 托管。

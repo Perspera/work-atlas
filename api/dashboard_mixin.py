@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """看板总台、页面布局、组件取数、大屏"""
 
-import alerts
-import auth
-import db
+from backend.domain import alerts
+from backend.core import auth
+from backend.core import db
 import json
 import re
-import rules
-import templates
-import widgets
+from backend.domain import rules
+from backend.core import templates
+from backend.domain import widgets
 
 from api.boards_init import (
     PAGE_TEMPLATES,

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """WMS 自动下载管理"""
 
-import db
+from backend.core import db
 import json
 import re
-import wms_manage
+from backend.wms import wms_manage
 
 from api.runtime import ApiError
 

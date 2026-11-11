@@ -13,10 +13,12 @@ import sys
 import threading
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-BACKUP_DIR = os.path.join(DATA_DIR, "backup")
-DB_PATH = os.path.join(DATA_DIR, "dashboard.db")
+from backend import paths
+
+BASE_DIR = paths.BASE_DIR
+DATA_DIR = paths.DATA_DIR
+BACKUP_DIR = paths.BACKUP_DIR
+DB_PATH = paths.DB_PATH
 
 _local = threading.local()
 

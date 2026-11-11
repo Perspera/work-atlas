@@ -327,24 +327,32 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
   open-browser.ps1      等服务真正就绪后再打开浏览器
   安装开机自启.ps1      注册登录自启 + 放行防火墙 8787（UTF-8 BOM）
   卸载开机自启.ps1      取消自启 + 删防火墙规则
-  server.py            HTTP 服务 + 静态页 + 鉴权闸门 + SSE + 启动编排
+  server.py            启动垫片（3 行，转调 backend/server.py，保持原命令可用）
+  backend/           后端 Python 包
+    paths.py           全项目唯一路径锚点（BASE_DIR / DATA_DIR / DB_PATH / 归档目录）
+    config_loader.py   配置加载（config.json + profiles 覆盖 + 环境变量切 dev/prod）
+    server.py          HTTP 服务 + 静态页 + 鉴权闸门 + SSE + 启动编排
+    core/db.py         SQLite 表结构与迁移（含 dealer_lookup 视图）
+    core/auth.py       登录、密码(PBKDF2)、会话、权限判定、审计
+    core/perms.py      权限点字典与角色预设
+    core/templates.py  内置看板模板（自由画布模板 + 5 个导航页默认布局）
+    domain/rules.py    业务口径（单量/进度/趋势/单量表矩阵/订单组台账/人效/覆盖/时效）
+    domain/widgets.py  组件取数引擎（9 数据集 × 16 维度 × 35 指标，白名单；含配置元数据与模板库）
+    domain/alerts.py   线路超时预警（截止时间、负责人、通知生成与去重）
+    domain/battery.py  动力电池候选与登记
+    collect/ingest.py  数据接入（扫描目录 → 解析 → 入库，含拣货人/复核人/组波人）
+    archives/archive.py            每日订单组存档（手动存档 + 跨天自动补档）
+    archives/labor_archive.py      人工作业量按作业日期归档
+    archives/archive_refresh.py    扫描后自动覆盖受影响日期的订单组/人效归档
+    archives/battery_archive.py    动力电池存档
+    archives/outbound_archive.py   出库流程节点文件归档
+    archives/source_archive.py     扫描源文件归档（快照 + 预览 + 导出）
+    wms/wms_manage.py              外部 WMS 自动下载的配置/定时任务/日志管理
   api/runtime.py       进程级共享状态（配置、日志、SSE 广播、ApiError）
-  api/routes.py        98 条接口路由表（方法 + 路径正则 + Handler 方法名）
+  api/routes.py        101 条接口路由表（方法 + 路径正则 + Handler 方法名）
   api/*_mixin.py       按领域拆分的接口实现（核心/登记/电池/人效/看板/预警/权限/导出/归档/WMS）
   api/startup.py       启动与后台任务（布局补种、每日备份、扫描循环、默认口令检测）
   api/boards_init.py   公共看板与导航页看板初始化
-  auth.py              登录、密码(PBKDF2)、会话、权限判定、审计
-  perms.py             权限点字典与角色预设
-  ingest.py            数据接入（扫描目录 → 解析 → 入库，含拣货人/复核人/组波人）
-  rules.py             业务口径（单量/进度/趋势/单量表矩阵/订单组台账/人效/覆盖/时效）
-  archive.py           每日订单组存档（手动存档 + 跨天自动补档）
-  labor_archive.py     人工作业量按作业日期归档（手动存档 + 跨天自动补档）
-  archive_refresh.py   扫描后自动覆盖受影响日期的订单组/人效归档
-  outbound_archive.py  出库流程节点文件归档（单份当前内容，表头/日期区间查询、导出）
-  alerts.py            线路超时预警（截止时间、负责人、通知生成与去重）
-  widgets.py           组件取数引擎（9 数据集 × 16 维度 × 35 指标，白名单；含配置元数据与模板库）
-  db.py                SQLite 表结构与迁移（含 dealer_lookup 视图）
-  templates.py         内置看板模板（自由画布模板 + 5 个导航页默认布局）
   config.json          数据目录、端口、扫描间隔、截止时间
   frontend/            React 前端源码（React 19 + Vite + TS）
   dist/                前端构建产物（不入库，由 Python 托管）

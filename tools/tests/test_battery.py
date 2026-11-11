@@ -7,8 +7,8 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
-import battery  # noqa: E402
-import db  # noqa: E402
+from backend.domain import battery  # noqa: E402
+from backend.core import db  # noqa: E402
 
 FAILS = []
 

@@ -13,8 +13,8 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
 
-import ingest  # noqa: E402
-import source_archive  # noqa: E402
+from backend.collect import ingest  # noqa: E402
+from backend.archives import source_archive  # noqa: E402
 
 FAILS = []
 

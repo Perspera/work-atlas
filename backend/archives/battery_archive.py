@@ -3,8 +3,8 @@
 import csv
 import io
 
-import battery
-import db
+from backend.domain import battery
+from backend.core import db
 
 
 def collect(conn, biz_date):
