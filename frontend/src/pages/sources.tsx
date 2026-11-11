@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { api } from "../lib/api";
+import { api, download } from "../lib/api";
 import { num } from "../lib/format";
 import { hasPerm, useApp } from "../lib/store";
 import { Badge, Empty, Loading, PageHead, Panel } from "../components/ui";
+import WmsPanel from "../features/wms-download";
+import SourceArchives from "../features/source-archives";
 
 interface SourceDir {
   path: string;
@@ -69,6 +71,7 @@ export default function SourcesPage() {
   const me = useApp((state) => state.me);
   const toast = useApp((state) => state.toast);
   const canScan = hasPerm(me, "action.scan");
+  const canExportDealers = hasPerm(me, "action.dealers.manage");
   const [filePage, setFilePage] = useState(1);
   const [fileGroup, setFileGroup] = useState(false);
 
@@ -89,6 +92,26 @@ export default function SourcesPage() {
     onError: (err) => toast((err as Error).message, "err"),
   });
 
+  const dealerFile = useRef<HTMLInputElement>(null);
+
+  // 与旧版一致：xlsx 以原始文件体上传；CSV 读成文本上传，后端按文件头自动分流。
+  const importDealers = async (file: File) => {
+    try {
+      const isCsv = /\.csv$/i.test(file.name);
+      const result = await api<{ count?: number; created?: number; updated?: number; skipped?: number }>(
+        "/api/dealers/import",
+        { method: "POST", rawBody: isCsv ? await file.text() : file },
+      );
+      toast(
+        `导入完成：新增 ${result.created ?? result.count ?? 0} / 更新 ${result.updated ?? 0} / 跳过 ${result.skipped ?? 0}`,
+        "ok",
+      );
+      void refetch();
+    } catch (error) {
+      toast((error as Error).message, "err");
+    }
+  };
+
   const range = data?.data_range;
 
   return (
@@ -101,6 +124,24 @@ export default function SourcesPage() {
           <button className="btn btn-primary" disabled={scan.isPending} onClick={() => scan.mutate()}>
             {scan.isPending ? "扫描中…" : "立即扫描"}
           </button>
+        )}
+        {canExportDealers && (
+          <>
+            <input
+              ref={dealerFile}
+              type="file"
+              accept=".xlsx,.xlsm"
+              style={{ display: "none" }}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void importDealers(file);
+              }}
+            />
+            <button className="btn" onClick={() => dealerFile.current?.click()}>
+              导入经销商 XLSX
+            </button>
+          </>
         )}
       </PageHead>
 
@@ -255,9 +296,39 @@ export default function SourcesPage() {
 
           <div style={{ height: 14 }} />
 
+          <WmsPanel />
+
+          <div style={{ height: 14 }} />
+
+          <SourceArchives />
+
+          <div style={{ height: 14 }} />
+
           <Panel
             title="未映射经销商"
             sub={`共 ${data.unmapped_count} 个，建议补全映射后单量分类才完整`}
+            actions={
+              canExportDealers && (
+                <>
+                  <button className="btn btn-sm" onClick={() => download("/api/export/unmapped-dealers.csv")}>
+                    导出未映射 CSV
+                  </button>
+                  <label className="btn btn-sm" style={{ cursor: "pointer" }}>
+                    批量导入更新
+                    <input
+                      type="file"
+                      accept=".csv"
+                      style={{ display: "none" }}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (file) void importDealers(file);
+                      }}
+                    />
+                  </label>
+                </>
+              )
+            }
             flush
           >
             {data.unmapped.length ? (

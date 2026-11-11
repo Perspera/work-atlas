@@ -15,8 +15,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_PATH = os.path.join(BASE_DIR, "data", "server.log")
 CONFIG = config_loader.load()
 COOKIE_NAME = "dash_session"
-# web_dir 指向哪个前端目录就托管哪个：默认 web（旧版），切成 web/dist 即为 React 版
-WEB_DIR = os.path.normpath(os.path.join(BASE_DIR, CONFIG.get("web_dir") or "web"))
+# 前端只有一份：React 版（frontend/ 源码，构建产物到 dist/），由 Python 托管。
+WEB_DIR = os.path.normpath(os.path.join(BASE_DIR, CONFIG.get("web_dir") or "dist"))
 STATIC_EXTS = {
     ".html", ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".gif",
     ".webp", ".ico", ".woff", ".woff2", ".json", ".map", ".txt",

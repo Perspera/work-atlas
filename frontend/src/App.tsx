@@ -12,6 +12,8 @@ import { useApp } from "./lib/store";
 import AdminPage from "./pages/admin";
 import AlertsPage from "./pages/alerts";
 import AuditPage from "./pages/audit";
+import SummaryPrint from "./features/summary-print";
+import { useBizDate } from "./lib/hooks";
 import BatteryPage from "./pages/battery";
 import BoardPage from "./pages/board";
 import DashboardPage from "./pages/dashboard";
@@ -58,6 +60,7 @@ function pageElement(page: PageDef) {
 export default function App() {
   const { data: me, isLoading, error, refetch } = useMe();
   const setMe = useApp((state) => state.setMe);
+  const date = useBizDate();
 
   useEffect(() => {
     if (me) setMe(me);
@@ -120,6 +123,10 @@ export default function App() {
             element={<Guard perm="page.dashboard"><BoardPage /></Guard>}
           />
           <Route path="screen" element={<Guard perm="page.screen"><ScreenPage /></Guard>} />
+          <Route
+            path="print"
+            element={<Guard perm="action.export"><SummaryPrint date={date} /></Guard>}
+          />
           <Route path="*" element={<Placeholder title="页面不存在" />} />
         </Route>
       </Routes>

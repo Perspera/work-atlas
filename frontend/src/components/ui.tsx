@@ -36,7 +36,7 @@ export function Panel({
             {title && <div className="panel-title">{title}</div>}
             {sub && <div className="panel-sub">{sub}</div>}
           </div>
-          {actions && <div className="toolbar">{actions}</div>}
+          {actions && <div className="panel-actions">{actions}</div>}
         </div>
       )}
       <div className={flush ? "panel-body flush" : "panel-body"}>{children}</div>

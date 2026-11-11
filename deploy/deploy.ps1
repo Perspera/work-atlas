@@ -1,4 +1,4 @@
-﻿# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
+# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1
@@ -32,7 +32,7 @@ $remoteSh = "/tmp/wa-deploy-$stamp.sh"
 
 Write-Host "== 1/4 构建前端并打包 ==" -ForegroundColor Cyan
 
-# React 前端产物（web/dist）由本地构建产生，线上不装 Node
+# React 前端产物（dist）由本地构建产生，线上不装 Node
 & npm --prefix (Join-Path $repo 'frontend') run build
 if ($LASTEXITCODE -ne 0) { throw '前端构建失败（npm run build）' }
 

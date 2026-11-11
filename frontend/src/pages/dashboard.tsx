@@ -247,6 +247,14 @@ export default function DashboardPage() {
           </Panel>
 
           <div style={{ marginTop: 14 }}>
+            <Panel title="固定分析页" sub="已改为固定布局，不在总台编辑">
+              <button className="btn" onClick={() => navigate("/volume")}>
+                打开“单量分析”（今日 / 本周 / 本月 / 本季度）
+              </button>
+            </Panel>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
             <Panel title="专题看板" sub="自由画布，可发布成公共看板或设为大屏播放">
               {data.dashboards.length === 0 ? (
                 <div className="small muted">还没有专题看板，点右上「新建专题看板」</div>

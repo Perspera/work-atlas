@@ -250,7 +250,7 @@ export default function OrdersPage() {
     <>
       <PageHead
         title="订单组登记"
-        sub={`业务日期 ${date} · 字段与现行《单据登记表》一致；可改区域/承运商/指派/备注，可移出或恢复`}
+        sub={`业务日期 ${date} · 字段与现行《单据登记表》一致；按波次登记顺序排列，可改区域/承运商/指派/备注，可移出或恢复`}
       >
         <button className="btn" disabled={!canArchive || filters.mode !== "live"} onClick={archive}>
           {data?.archived_at ? "重新存档" : date === meta.data?.today ? "存档今日" : "存档当日"}

@@ -47,4 +47,4 @@ desktop.ini
 node_modules/
 
 # ===== React 前端构建产物 =====
-web/dist/
+dist/

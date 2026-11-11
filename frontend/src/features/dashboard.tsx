@@ -41,7 +41,10 @@ export type WidgetData =
   | { kind: "rows"; rows: Record<string, unknown>[]; columns: WidgetColumn[]; total?: number; empty_text?: string }
   | { kind: "text"; text: string };
 
-const ROW_HEIGHT = 60;
+/** 与旧版 web/grid.js 的 DEFAULTS 保持一致：行高 64px、间距 12px、12 列。 */
+const ROW_HEIGHT = 64;
+const ROW_GAP = 12;
+const COLS = 12;
 
 /** 组件级配色：默认单色，马卡龙/多巴胺为可选色系（与旧版 COLOR_SCHEMES 一致）。 */
 const COLOR_SCHEMES: Record<string, string[]> = {
@@ -62,12 +65,97 @@ export function paletteFor(spec?: Record<string, unknown>): string[] | null {
   return colors;
 }
 
-function formatMetric(metric: string, value: number | string | null | undefined) {
+/** 人效类指标：值是「行/小时」，按 1 位小数展示，不能套百分比。与旧版 web/app.js:2806-2826 一致。 */
+const PER_HOUR_METRICS = new Set(["pick_rate", "check_rate", "labor_rate"]);
+
+/** 工时类指标：1 位小数 + h。 */
+const HOURS_METRICS = new Set([
+  "labor_hours",
+  "pick_hours",
+  "check_hours",
+  "cycle_avg",
+  "cycle_max",
+  "pick_lag_avg",
+  "check_lag_avg",
+  "out_lag_avg",
+]);
+
+/** KPI 取值与单位，逐条对齐旧版 web/app.js:2806-2826 的 drawData 分支。 */
+function formatKpi(metric: string, value: number | string | null | undefined, unit?: string) {
+  const metricUnit = unit || "";
+  const isAmount = metric === "amount" || /_amount$/.test(metric);
+  if (value === null || value === undefined) {
+    return { text: "-", unit: isAmount ? metricUnit || "万元" : metricUnit };
+  }
+  if (typeof value === "string") return { text: value, unit: metricUnit };
+  if (PER_HOUR_METRICS.has(metric)) return { text: num(value, 1), unit: metricUnit || "行/小时" };
+  if (metric.includes("_rate")) return { text: pct(value), unit: "" };
+  if (HOURS_METRICS.has(metric)) return { text: num(value, 1), unit: metricUnit || "h" };
+  return { text: num(value, isAmount ? 2 : 0), unit: isAmount ? metricUnit || "万元" : metricUnit };
+}
+
+const DIMENSION_LABELS: Record<string, string> = {
+  route: "承运商 / 线路",
+  zone: "库区",
+  region: "区域",
+  doc_type: "单据类型",
+  dealer: "经销商",
+  wave: "波次",
+  carrier_tms: "运输承运商",
+  status: "发运状态",
+  hour: "小时",
+  date: "日期",
+  erp_status: "ERP回传状态",
+  person: "人员",
+  pick_person: "拣货人",
+  check_person: "复核人",
+  warehouse: "仓库",
+  freight_free: "是否免运费",
+};
+
+function dimensionLabel(dimension?: string) {
+  return (dimension && DIMENSION_LABELS[dimension]) || "维度";
+}
+
+/** 表格单元格：与旧版 web/app.js:2636-2648 seriesToTable 的取值规则一致。 */
+function tableCell(metric: string, value: number | null | undefined) {
   if (value === null || value === undefined) return "-";
-  if (typeof value === "string") return value;
-  if (metric.endsWith("_rate")) return pct(value);
-  if (metric === "amount" || metric.endsWith("_amount")) return money(value);
-  return num(value, Number.isInteger(value) ? 0 : 2);
+  if (PER_HOUR_METRICS.has(metric)) return num(value, 1);
+  if (metric.includes("_rate")) return pct(value);
+  return num(value, metric === "amount" || /_amount$/.test(metric) ? 2 : 0);
+}
+
+/** table / detail 组件：后端返回的是 series，需在前端转成表格（旧版 seriesToTable 同构）。 */
+function TableBody({ data }: { data: Extract<WidgetData, { kind: "series" }> }) {
+  if (!data.categories.length) return <Empty text="暂无数据" />;
+  return (
+    <div className="table-wrap" style={{ maxHeight: "100%" }}>
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>{dimensionLabel(data.dimension)}</th>
+            {data.series.map((series) => (
+              <th key={series.metric || series.name} className="num">
+                {series.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.categories.map((label, index) => (
+            <tr key={`${label}-${index}`}>
+              <td className="nowrap">{label}</td>
+              {data.series.map((series) => (
+                <td key={series.metric || series.name} className="num">
+                  {tableCell(series.metric || "", series.values[index])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function SeriesBody({
@@ -120,7 +208,16 @@ function SeriesBody({
   if (type === "line") {
     return <LineChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} />;
   }
-  return <BarChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} />;
+  return (
+    <BarChart
+      categories={data.categories}
+      series={data.series}
+      height="100%"
+      horizontal={data.categories.length > 8}
+      palette={palette || undefined}
+      showValues={showValues}
+    />
+  );
 }
 
 function RowsBody({ data }: { data: Extract<WidgetData, { kind: "rows" }> }) {
@@ -171,26 +268,31 @@ export function WidgetBody({
 }) {
   if (data.kind === "text") return <div className="small">{data.text}</div>;
   if (data.kind === "value") {
+    const kpi = formatKpi(data.metric, data.value, data.unit);
+    const trend = typeof data.delta === "number" && Number.isFinite(data.delta) ? data.delta : null;
     return (
-      <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
-        <div>
-          <div className="kpi-value" style={{ marginTop: 0, color: palette?.[0] }}>
-            {formatMetric(data.metric, data.value)}
-            {data.unit && <span className="kpi-unit">{data.unit}</span>}
-          </div>
-          {typeof data.delta === "number" && (
-            <div className={`kpi-sub ${data.delta >= 0 ? "kpi-up" : "kpi-down"}`}>
-              环比 {data.delta >= 0 ? "+" : ""}
-              {pct(data.delta)}（{data.prev_date}）
-            </div>
-          )}
+      <div>
+        <div className="kpi-label">{data.label}</div>
+        <div className="kpi-value">
+          {kpi.text}
+          {kpi.unit && <span className="kpi-unit">{kpi.unit}</span>}
         </div>
+        {trend !== null && (
+          <div className="kpi-sub">
+            环比 {pct(trend)}
+            {data.prev_date ? `（${data.prev_date}）` : ""}
+          </div>
+        )}
       </div>
     );
   }
   if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" palette={palette || undefined} />;
   if (data.kind === "rows") return <RowsBody data={data} />;
-  if (data.kind === "series") return <SeriesBody data={data} type={type} palette={palette} showValues={showValues} />;
+  if (data.kind === "series") {
+    // table/detail 也要画成表格：旧版 web/app.js:2916 对这两种类型走 seriesToTable。
+    if (type === "table" || type === "detail") return <TableBody data={data} />;
+    return <SeriesBody data={data} type={type} palette={palette} showValues={showValues} />;
+  }
   return null;
 }
 
@@ -215,32 +317,43 @@ export function WidgetCard({
   });
   const palette = paletteFor(widget.spec);
   const showValues = widget.spec?.show_values !== false;
+  const isKpi = widget.type === "kpi";
 
   return (
     <section className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-      {widget.type !== "kpi" && (
+      {!isKpi && (
         <div className="panel-head" style={{ flex: "0 0 auto" }}>
           <div className="panel-title dg-drag">{widget.title}</div>
           {actions}
         </div>
       )}
-      {widget.type === "kpi" && actions && (
-        <div style={{ position: "absolute", right: 4, top: 4, zIndex: 2 }}>{actions}</div>
+      {isKpi && actions && (
+        <div style={{ position: "absolute", top: 6, right: 8, zIndex: 2, display: "flex", gap: 6 }}>{actions}</div>
       )}
       <div
         className="panel-body"
         style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
       >
-        {widget.type === "kpi" && <div className="kpi-label">{widget.title}</div>}
-        <div style={{ flex: 1, minHeight: 0 }}>
-          {isLoading ? <Loading /> : error ? <div className="widget-error">{(error as Error).message}</div> : data ? <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} /> : null}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          {isLoading ? (
+            <Loading />
+          ) : error ? (
+            <div className="widget-error">{(error as Error).message}</div>
+          ) : data ? (
+            <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} />
+          ) : null}
         </div>
       </div>
     </section>
   );
 }
 
-/** 只读布局：沿用旧版 12 列 × 60px 行的 layout 结构，保证历史布局位置一致。 */
+/**
+ * 只读布局：与旧版 web/grid.js 的几何算法逐像素一致（12 列、行高 rowHeight、间距 ROW_GAP）。
+ * 旧版：cellW=(W-gap*(cols+1))/cols，left=gap+x*(cellW+gap)，width=w*cellW+(w-1)*gap，
+ * top=gap+y*(rowHeight+gap)，height=h*rowHeight+(h-1)*gap，容器高=rows*(rowHeight+gap)+gap。
+ * 用 calc() 复刻同一公式，保证历史 layout_json 的组件位置/尺寸与旧版一致。
+ */
 export function WidgetGrid({
   layout,
   date,
@@ -255,18 +368,20 @@ export function WidgetGrid({
   const widgets = layout.widgets || [];
   if (!widgets.length) return <Empty text="这个页面还没有组件" />;
   const rows = Math.max(...widgets.map((item) => item.y + item.h), 1);
+  // 旧版 cellW=(W-gap*(cols+1))/cols；用 (100% - 156px) 表示总列宽，再按 x/12、w/12 折算。
+  const span = (n: number) => (n / COLS).toFixed(6);
+  const gutter = ROW_GAP * (COLS + 1);
   return (
-    <div style={{ position: "relative", height: rows * rowHeight }}>
+    <div style={{ position: "relative", height: rows * (rowHeight + ROW_GAP) + ROW_GAP }}>
       {widgets.map((widget) => (
         <div
           key={widget.id}
           style={{
             position: "absolute",
-            left: `${(widget.x / 12) * 100}%`,
-            top: widget.y * rowHeight,
-            width: `${(widget.w / 12) * 100}%`,
-            height: widget.h * rowHeight,
-            padding: 6,
+            left: `calc((100% - ${gutter}px) * ${span(widget.x)} + ${ROW_GAP + widget.x * ROW_GAP}px)`,
+            top: ROW_GAP + widget.y * (rowHeight + ROW_GAP),
+            width: `calc((100% - ${gutter}px) * ${span(widget.w)} + ${(widget.w - 1) * ROW_GAP}px)`,
+            height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
           }}
         >
           <WidgetCard widget={widget} date={date} mode={mode} />

@@ -226,10 +226,13 @@ export default function BatteryPage() {
         ))}
         {canManage && <button className="btn" onClick={archive}>存档今日</button>}
         <button className="btn" onClick={refresh}>刷新</button>
-        <button className="btn" onClick={() => download("/api/export/battery.csv", {
-          ...(mode === "archive" ? { from: filters.from, to: filters.to } : { order_from: filters.from, order_to: filters.to }),
-          q: filters.q, status: filters.status, page: filters.page, page_size: 50,
-        })}>导出 CSV</button>
+        <button className="btn" onClick={() => download(
+          mode === "archive" ? "/api/export/battery-archive.csv" : "/api/export/battery.csv",
+          {
+            ...(mode === "archive" ? { from: filters.from, to: filters.to } : { order_from: filters.from, order_to: filters.to }),
+            q: filters.q, status: filters.status, page: filters.page, page_size: 50,
+          },
+        )}>导出 CSV</button>
       </PageHead>
 
       <div className="panel" style={{ marginBottom: 14 }}>
@@ -290,8 +293,7 @@ export default function BatteryPage() {
           flush
         >
           {todayRows.isLoading && <Loading />}
-          {todayRows.data && todayRows.data.rows.length === 0 && <Empty text="今天还没有已登记的动力电池明细" />}
-          {todayRows.data && todayRows.data.rows.length > 0 && (
+          {todayRows.data && (
             <div className="table-wrap" style={{ maxHeight: 320 }}>
               <table className="tbl" style={{ minWidth: 1650 }}>
                 <thead>
@@ -304,6 +306,11 @@ export default function BatteryPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {todayRows.data.rows.length === 0 && (
+                    <tr>
+                      <td colSpan={18}><Empty text="今天还没有已登记的动力电池明细" /></td>
+                    </tr>
+                  )}
                   {todayRows.data.rows.map((row, index) => (
                     <tr key={`${row.group_no}-${row.part_code}-${index}`} className={row.incomplete ? "danger-row" : ""}>
                       <td>{row.order_date || "-"}</td>
@@ -327,16 +334,18 @@ export default function BatteryPage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <td><b>合计</b></td><td /><td /><td /><td /><td />
-                    <td className="num"><b>{num(todayRows.data.summary.lines)}</b></td>
-                    <td className="num"><b>{num(todayRows.data.summary.qty)}</b></td>
-                    <td className="num"><b>{num(todayRows.data.summary.amount, 2)}</b></td>
-                    <td className="num"><b>{num(todayRows.data.summary.picked)}</b></td>
-                    <td className="num"><b>{num(todayRows.data.summary.checked)}</b></td>
-                  </tr>
-                </tfoot>
+                {todayRows.data.rows.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <td><b>合计</b></td><td /><td /><td /><td /><td />
+                      <td className="num"><b>{num(todayRows.data.summary.lines)}</b></td>
+                      <td className="num"><b>{num(todayRows.data.summary.qty)}</b></td>
+                      <td className="num"><b>{num(todayRows.data.summary.amount, 2)}</b></td>
+                      <td className="num"><b>{num(todayRows.data.summary.picked)}</b></td>
+                      <td className="num"><b>{num(todayRows.data.summary.checked)}</b></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}

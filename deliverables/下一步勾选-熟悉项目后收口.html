@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>熟悉项目后 · 下一步勾选（2026-11-10）</title>
+<style>
+  :root{ --bg:#f5f7fa; --card:#ffffff; --line:#dfe5ee; --ink:#1c2733; --sub:#5a6b7d; --accent:#2563eb; --accent-soft:#eaf1ff; --warn:#b45309; --warn-soft:#fff4e3; --ok:#15803d; --ok-soft:#e8f7ee; --danger:#b91c1c; --danger-soft:#fdecec; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.7 "Microsoft YaHei","PingFang SC",Arial,sans-serif;padding:24px 24px 210px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 6px}
+  h2{font-size:17px;margin:0 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+  h3{font-size:15px;margin:0 0 10px}
+  .sub{color:var(--sub);margin:0 0 22px;font-size:13px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(20,40,80,.04)}
+  ul{margin:6px 0 0;padding-left:20px}
+  li{margin:3px 0}
+  code{background:#f0f3f8;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;font:12px/1.5 Consolas,monospace;color:#1f3a5f}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f0f4fa;font-weight:600;white-space:nowrap}
+  .tag{display:inline-block;border-radius:4px;padding:1px 7px;font-size:12px;font-weight:600;white-space:nowrap}
+  .t-ok{background:var(--ok-soft);color:var(--ok)}
+  .t-warn{background:var(--warn-soft);color:var(--warn)}
+  .t-danger{background:var(--danger-soft);color:var(--danger)}
+  .t-info{background:var(--accent-soft);color:var(--accent)}
+  .group{border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin-bottom:14px;background:#fcfdff}
+  .group > h3{display:flex;align-items:center;gap:8px}
+  .gnum{background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+  .ghint{color:var(--sub);font-size:12px;margin:0 0 10px}
+  .opt{display:block;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;cursor:pointer;background:#fff;transition:.15s}
+  .opt:hover{border-color:#a9c2f5;background:#f8fbff}
+  .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent) inset}
+  .opt input{margin-right:8px;accent-color:var(--accent)}
+  .opt-head{font-weight:700;font-size:14px}
+  .kv{display:block;margin:6px 0 0 24px;color:var(--sub);font-size:12.5px}
+  .kv i{font-style:normal;color:var(--ink);font-weight:600;margin-right:4px}
+  .kv b{font-weight:600;color:#334155}
+  .rec{background:var(--ok-soft);color:var(--ok);font-size:11px;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(20,40,80,.08);padding:12px 24px 14px;z-index:9}
+  .bar-in{max-width:1080px;margin:0 auto}
+  .bar-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .bar-top strong{font-size:14px}
+  .bar-top .hint{color:var(--sub);font-size:12px}
+  button{font:13px/1.4 inherit;padding:7px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  button.plain{background:#fff;color:var(--sub);border-color:var(--line)}
+  button:hover{opacity:.88}
+  textarea{width:100%;height:112px;resize:vertical;border:1px solid var(--line);border-radius:7px;padding:10px 12px;font:12.5px/1.6 Consolas,"Microsoft YaHei",monospace;background:#f8fafc;color:var(--ink)}
+  .foot{color:var(--sub);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>熟悉项目后 · 下一步勾选</h1>
+  <p class="sub">项目：单量与作业进度看板（work-atlas）　|　日期：2026-11-10　|　基线提交：<code>53530d0</code>（已推送 origin/main，工作区仅有 1 个未跟踪文档）　|　单选组默认勾选推荐项，选择会自动保存到本机浏览器</p>
+
+  <section>
+    <h2>一、引用约定块（文档写全名）</h2>
+    <ul>
+      <li>《README.md》<b>第七节「目录结构与维护」</b>：启动方式、<code>config.json</code> 的 dev/prod 双配置、<code>python ingest.py --scan / --check</code>、自检与备份。</li>
+      <li>《README.md》<b>第五节「数据口径（和原来那张单量表怎么对）」</b>：业务日期、行数/金额、库区、指派、人效口径——改任何取数前先读。</li>
+      <li>《README.md》<b>第八节「常见问题」</b>：批处理必须 CRLF + ASCII、布局发布不覆盖个人布局、人效按作业日期归属。</li>
+      <li>《P4-剩余事项清单.md》<b>A/B/C/D/E 组与「建议执行顺序」</b>：本轮待办的权威清单（B 组验收 → C 组上线 → A 组清理 → D 组）。</li>
+      <li>《架构评估与分阶段优化计划》（<code>.trae/documents/architecture-optimization-plan.md</code>）<b>§5.1 四条硬约束</b>与<b>§7 验证清单 · 前端验收清单（P4 专用）</b>。</li>
+      <li>《tools/tests/run_all.py》文件头注释：项目自带的<b>快档门禁</b>（默认只跑 <code>test_*.py</code>），<code>--with-smoke</code> 才含端到端。</li>
+      <li>《deploy/deploy.ps1》文件头注释：一键发布 4 步、健康检查失败自动回滚、必须 UTF-8 with BOM。</li>
+      <li>《启动看板.bat》：必须保持 <b>ASCII + CRLF</b>，且带 <code>web/dist/index.html</code> 前置检查。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>二、已落地事实表（已提交 / 已实测，不是计划）</h2>
+    <table>
+      <tr><th>事实</th><th>证据</th><th>状态</th></tr>
+      <tr><td>P4-1 ~ P4-4 已完成，React 19 + Vite + TS 版 12 页 + 大屏 + 看板总台 + 配置向导 / 编辑器升级</td><td>《P4-剩余事项清单.md》「已完成」表；提交 <code>679440c</code>、<code>53530d0</code></td><td><span class="tag t-ok">已推送</span></td></tr>
+      <tr><td>本地已切流 React 版：<code>config.json</code> 的 <code>web_dir = "web/dist"</code></td><td>《config.json》第 22 行；<code>web/dist/index.html</code> 与 <code>assets/</code> 存在（18:01 构建）</td><td><span class="tag t-ok">已实测</span></td></tr>
+      <tr><td>管理员默认口令已修改（<code>pwd_is_default = 0</code>）</td><td>《P4-剩余事项清单.md》「安全」行</td><td><span class="tag t-ok">已落地</span></td></tr>
+      <tr><td>本地服务正在运行：8787 端口 LISTENING（PID 31684），<code>/api/health</code> 返回 <code>{"ok": true, ...}</code></td><td>18:12 本机实测；<code>data/server.log</code> 每分钟写预警通知</td><td><span class="tag t-ok">运行中</span></td></tr>
+      <tr><td>后端已 Mixin 拆分：<code>api/routes.py</code> 98 条路由、<code>api/*_mixin.py</code> 11 个领域实现；<code>db.py</code> 33 张表</td><td>《README.md》第七节 + 本轮行数/条数核对</td><td><span class="tag t-ok">已落地</span></td></tr>
+      <tr><td>旧前端 <code>web/app.js</code> 等 5 个文件仍在（约 430KB），刻意保留作线上回滚保障</td><td>《P4-剩余事项清单.md》A-1；本轮 <code>ls web</code> 确认</td><td><span class="tag t-info">刻意保留</span></td></tr>
+      <tr><td>项目自带快档：<code>python tools/tests/run_all.py</code>（8 个 <code>test_*.py</code>，各自用临时库副本）；前端快档 <code>npm run build</code>（<code>tsc --noEmit && vite build</code>）</td><td>《tools/tests/run_all.py》、《frontend/package.json》</td><td><span class="tag t-ok">可用</span></td></tr>
+      <tr><td><code>frontend/node_modules</code> 已安装；<code>web/dist</code>、运行时数据库、<code>.trae/</code> 都被忽略不入库</td><td>《.gitignore》；本轮目录核对</td><td><span class="tag t-ok">已实测</span></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>三、会影响判断的事实</h2>
+    <ul>
+      <li><span class="tag t-warn">线上未切流</span> 线上仍是旧版前端；C 组「部署到线上 / 线上回归 / 稳定后清理」<b>3 步全部未开始</b>。本地跑得通 ≠ 线上验证过。</li>
+      <li><span class="tag t-warn">B 组未验收</span> 6 项专项（布局兼容 / SSE / 性能 / 只读权限 / 浏览器兼容 / 功能对齐）+ 3 个编辑器分支（发布、复制组件、恢复默认、拖拽缩放）尚未逐项实测。《P4-剩余事项清单.md》B-6 点名高风险页：<code>battery</code> 地址 9 字段与备件表上传、<code>labor</code> 工时校正 pick/check、<code>waves</code> 乐观锁 409。</li>
+      <li><span class="tag t-danger">默认密码已失效</span> 《tools/tests/smoke_test.py》与《tools/dev/ui_check.js》的默认口令都是 <code>Admin12345</code>，而管理员口令已改；<b>不显式传第二个参数会登录失败</b>，看起来像测试挂了其实是凭据问题。</li>
+      <li><span class="tag t-warn">服务在跑</span> 8787 正被 PID 31684 占用，且日志显示有活动连接；改 <code>config.json</code> 或重启服务会影响正在看板的同事，属于需用户确认的动作。</li>
+      <li><span class="tag t-info">文档不在 git 里</span> 《P4-剩余事项清单.md》是未跟踪文件（<code>??</code>），《架构评估与分阶段优化计划》在 <code>.trae/</code>（被忽略）。换机器/新会话默认看不到，需显式提交或另存。</li>
+      <li><span class="tag t-info">生产归用户</span> 部署到 <code>8.163.57.96</code>、阿里云安全组 18081 收紧、nginx 白名单、systemd 重启都需服务器凭据/控制台，按约定由用户本人执行；我这边只给命令与判据。</li>
+      <li><span class="tag t-info">回滚路径</span> 线上：<code>ln -sfn /opt/work-atlas/releases/&lt;上一版本&gt; /opt/work-atlas/current && systemctl restart work-atlas</code>；本地：<code>config.json</code> 的 <code>web_dir</code> 改回 <code>"web"</code> 并重启。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>四、单选组（每组必选其一，已默认勾选推荐项）</h2>
+
+    <div class="group">
+      <h3><span class="gnum">1</span>本轮主任务：先做哪一件</h3>
+      <p class="ghint">依据《P4-剩余事项清单.md》「建议执行顺序」：B 组验收（本地、风险最低）→ C 组上线 → A 组清理 → D 组。</p>
+      <label class="opt" data-lbl="先做 B 组验收（本地，不动线上）">
+        <input type="radio" name="g1" value="a" data-rec="1" checked>
+        <span class="opt-head">先做 B 组验收（本地，不动线上）<span class="rec">推荐</span> <span class="tag t-ok">风险：低</span></span>
+        <span class="kv"><i>收益</i>把 6 项专项 + 编辑器未测分支跑实，上线前把问题挡在本地；<i>代价</i>需要浏览器逐页人工走查一轮；<i>落地点</i><code>python tools/tests/run_all.py</code>、<code>cd frontend && npm run build</code>、逐页打开 http://127.0.0.1:8787 比对；<i>谁能推进</i>命令我可代跑，浏览器人工走查只能用户；<i>风险标签</i><b>低（不改线上）</b>。</span>
+      </label>
+      <label class="opt" data-lbl="直接部署上线（C 组）">
+        <input type="radio" name="g1" value="b">
+        <span class="opt-head">直接部署上线（C 组）<span class="tag t-danger">风险：高</span></span>
+        <span class="kv"><i>收益</i>最快让线上用上 React 版；<i>代价</i>B 组未验收，功能对齐/编辑器分支问题会直接暴露给同事；<i>落地点</i><code>powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1</code>（在 D:\newapp\projects\work-atlas 执行）；<i>谁能推进</i><b>只能用户</b>（需服务器凭据）；<i>风险标签</i><b>高，但脚本健康检查失败会自动回滚</b>。</span>
+      </label>
+      <label class="opt" data-lbl="先删旧前端（A-1）">
+        <input type="radio" name="g1" value="c">
+        <span class="opt-head">先删旧前端（A-1）<span class="tag t-danger">风险：高</span></span>
+        <span class="kv"><i>收益</i>仓库瘦约 430KB；<i>代价</i><b>提前拆掉回滚保障</b>，与《P4-剩余事项清单.md》A-1 的「等线上稳定数日」相冲突；<i>落地点</i><code>git rm web/app.js web/charts.js web/grid.js web/index.html web/styles.css</code>；<i>谁能推进</i>我可代跑，但不建议现在；<i>风险标签</i><b>高（不可逆性中等，需 git 恢复）</b>。</span>
+      </label>
+      <label class="opt" data-lbl="本轮只收下熟悉结论，不改代码">
+        <input type="radio" name="g1" value="d">
+        <span class="opt-head">本轮只收下熟悉结论，不改代码<span class="tag t-info">风险：无</span></span>
+        <span class="kv"><i>收益</i>零改动、零风险，先把项目脉络沉淀进项目记忆；<i>代价</i>P4 待办原样留着；<i>落地点</i>本页 + <code>.workbuddy-ai/memory/2026-11-10.md</code>；<i>谁能推进</i><b>我已完成</b>；<i>风险标签</i><b>无</b>。</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h3><span class="gnum">2</span>B 组验收怎么分工</h3>
+      <p class="ghint">验收清单见《架构评估与分阶段优化计划》§7「前端验收清单（P4 专用）」。</p>
+      <label class="opt" data-lbl="我代跑可自动化部分，用户做浏览器人工走查（推荐）">
+        <input type="radio" name="g2" value="a" data-rec="1" checked>
+        <span class="opt-head">我代跑可自动化部分，用户做浏览器人工走查<span class="rec">推荐</span> <span class="tag t-ok">风险：低</span></span>
+        <span class="kv"><i>收益</i>分层跑、不空等；接口/构建/权限位由我出结论，视觉与交互由用户拍板；<i>代价</i>需要用户开浏览器逐页看；<i>落地点</i>我：<code>python tools/tests/run_all.py</code> + <code>npm run build</code>；用户：打开 http://127.0.0.1:8787 逐页核对 B-1~B-7；<i>谁能推进</i><b>双方</b>；<i>风险标签</i><b>低</b>。</span>
+      </label>
+      <label class="opt" data-lbl="全部由用户手工走查">
+        <input type="radio" name="g2" value="b">
+        <span class="opt-head">全部由用户手工走查<span class="tag t-info">风险：低</span></span>
+        <span class="kv"><i>收益</i>判断完全由熟悉业务的人做；<i>代价</i>耗时最长，重复性检查多；<i>落地点</i>用户按《P4-剩余事项清单.md》B 组逐项打勾；<i>谁能推进</i><b>只能用户</b>；<i>风险标签</i><b>低，但容易漏项</b>。</span>
+      </label>
+      <label class="opt" data-lbl="用 ui_check.js 自动截图 + 控制台错误收集">
+        <input type="radio" name="g2" value="c">
+        <span class="opt-head">用 <code>ui_check.js</code> 自动截图 + 控制台错误收集<span class="tag t-warn">风险：中</span></span>
+        <span class="kv"><i>收益</i>一次性拿到 12 页截图与控制台报错；<i>代价</i>依赖本机 Chrome/puppeteer-core 与<b>正确的新管理员密码</b>，脚本默认 <code>Admin12345</code> 已失效；<i>落地点</i><code>node tools/dev/ui_check.js http://127.0.0.1:8787 &lt;新密码&gt;</code>；<i>谁能推进</i><b>需要用户先提供/输入密码</b>；<i>风险标签</i><b>中（凭据 + 本机 Chrome 路径）</b>。</span>
+      </label>
+      <label class="opt" data-lbl="暂不验收">
+        <input type="radio" name="g2" value="d">
+        <span class="opt-head">暂不验收<span class="tag t-warn">风险：中</span></span>
+        <span class="kv"><i>收益</i>不占用本轮时间；<i>代价</i>上线判断缺依据；<i>落地点</i>无；<i>谁能推进</i>用户拍板；<i>风险标签</i><b>中（把不确定性推给上线）</b>。</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h3><span class="gnum">3</span>验证门禁节奏</h3>
+      <p class="ghint">按《tools/tests/run_all.py》与《frontend/package.json》已有的分层档位执行，不自己拼一套全量命令。</p>
+      <label class="opt" data-lbl="分层：改一个文件跑对应测试，一批收口跑快档（推荐）">
+        <input type="radio" name="g3" value="a" data-rec="1" checked>
+        <span class="opt-head">分层：改一个文件跑对应测试，一批收口跑快档<span class="rec">推荐</span> <span class="tag t-ok">风险：低</span></span>
+        <span class="kv"><i>收益</i>十几秒出结果，不打断节奏；<i>代价</i>全量只在「推送 / 发版 / 收口」或改到跨模块核心时跑；<i>落地点</i>单文件 <code>python tools/tests/test_archive_refresh.py</code>；快档 <code>python tools/tests/run_all.py</code>；前端 <code>npm run build</code>；<i>谁能推进</i><b>我可代跑</b>；<i>风险标签</i><b>低</b>。</span>
+      </label>
+      <label class="opt" data-lbl="一次跑全量（含 smoke 端到端）">
+        <input type="radio" name="g3" value="b">
+        <span class="opt-head">一次跑全量（含 smoke 端到端）<span class="tag t-warn">风险：中</span></span>
+        <span class="kv"><i>收益</i>覆盖面最全；<i>代价</i>需要服务在跑 + 正确管理员密码，且 <code>smoke_test.py</code> 会<b>真实写存档并创建测试账号</b>；<i>落地点</i><code>python tools/tests/run_all.py --with-smoke http://127.0.0.1:8787</code>；<i>谁能推进</i><b>只能用户</b>（密码 + 允许写业务库）；<i>风险标签</i><b>中（会写真实数据）</b>。</span>
+      </label>
+      <label class="opt" data-lbl="本轮不跑测试">
+        <input type="radio" name="g3" value="c">
+        <span class="opt-head">本轮不跑测试<span class="tag t-info">风险：无</span></span>
+        <span class="kv"><i>收益</i>零耗时；<i>代价</i>没有验证结论；<i>落地点</i>无；<i>谁能推进</i>用户拍板；<i>风险标签</i><b>无（仅本轮不改代码时适用）</b>。</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h3><span class="gnum">4</span>上线时机（C 组，生产动作由用户执行）</h3>
+      <p class="ghint">《deploy/deploy.ps1》会先本地 <code>npm run build</code> 再打包上传，健康检查失败自动切回上一版本。</p>
+      <label class="opt" data-lbl="B 组全绿后再上线（推荐）">
+        <input type="radio" name="g4" value="a" data-rec="1" checked>
+        <span class="opt-head">B 组全绿后再上线<span class="rec">推荐</span> <span class="tag t-ok">风险：低</span></span>
+        <span class="kv"><i>收益</i>符合《P4-剩余事项清单.md》建议执行顺序；<i>代价</i>上线时间后移一轮；<i>落地点</i>用户执行 <code>powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1</code>，再用 18081 白名单入口逐页走查；<i>谁能推进</i><b>只能用户</b>；<i>风险标签</i><b>低</b>。</span>
+      </label>
+      <label class="opt" data-lbl="用户确认后立即上线，线上边用边验">
+        <input type="radio" name="g4" value="b">
+        <span class="opt-head">用户确认后立即上线，线上边用边验<span class="tag t-danger">风险：高</span></span>
+        <span class="kv"><i>收益</i>最快切换；<i>代价</i>线上同事直接遇到问题，需靠版本目录回滚；<i>落地点</i>同上 + 回滚 <code>ln -sfn /opt/work-atlas/releases/&lt;上一版本&gt; /opt/work-atlas/current && systemctl restart work-atlas</code>；<i>谁能推进</i><b>只能用户</b>；<i>风险标签</i><b>高</b>。</span>
+      </label>
+      <label class="opt" data-lbl="暂不上线，本地继续打磨">
+        <input type="radio" name="g4" value="c">
+        <span class="opt-head">暂不上线，本地继续打磨<span class="tag t-info">风险：无</span></span>
+        <span class="kv"><i>收益</i>线上保持稳定的旧版；<i>代价</i>React 版收益不兑现；<i>落地点</i>无；<i>谁能推进</i>用户拍板；<i>风险标签</i><b>无</b>。</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h3><span class="gnum">5</span>阿里云安全组 18081 收紧（D-5）</h3>
+      <p class="ghint">《deploy/nginx-work-atlas.conf》已写死白名单 <code>183.233.190.250</code>，但云控制台安全组仍是 <code>0.0.0.0/0</code>。</p>
+      <label class="opt" data-lbl="用户现在顺手收紧（推荐）">
+        <input type="radio" name="g5" value="a" data-rec="1" checked>
+        <span class="opt-head">用户现在顺手收紧<span class="rec">推荐</span> <span class="tag t-ok">风险：低</span></span>
+        <span class="kv"><i>收益</i>与代码无关、不需要等 P4，立刻收敛公网暴露面；<i>代价</i>不在白名单网络的同事会连不上，需先确认公司出口 IP 未变；<i>落地点</i>用户到阿里云 ECS 安全组把 18081 授权对象从 <code>0.0.0.0/0</code> 改为 <code>183.233.190.250/32</code>；<i>谁能推进</i><b>只能用户</b>（控制台 + 账号）；<i>风险标签</i><b>低，但改错 IP 会把自己锁在外面</b>。</span>
+      </label>
+      <label class="opt" data-lbl="随上线一起做">
+        <input type="radio" name="g5" value="b">
+        <span class="opt-head">随上线一起做<span class="tag t-warn">风险：中</span></span>
+        <span class="kv"><i>收益</i>一次窗口处理完；<i>代价</i>上线当天多一件并发操作，出问题难定位是安全组还是应用；<i>落地点</i>同上，排在《deploy/deploy.ps1》之后；<i>谁能推进</i><b>只能用户</b>；<i>风险标签</i><b>中</b>。</span>
+      </label>
+      <label class="opt" data-lbl="暂不处理，保持现状">
+        <input type="radio" name="g5" value="c">
+        <span class="opt-head">暂不处理，保持现状<span class="tag t-warn">风险：中</span></span>
+        <span class="kv"><i>收益</i>不动控制台；<i>代价</i>《架构评估与分阶段优化计划》§2.5 的 P0-3 风险继续挂着；<i>落地点</i>无；<i>谁能推进</i>用户拍板；<i>风险标签</i><b>中（公网暴露面持续）</b>。</span>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <h2>五、已裁定不再问的项（供对照）</h2>
+    <ul>
+      <li>技术栈：React 19 + Vite + TS + ECharts + react-grid-layout + TanStack Query + Zustand（《架构评估与分阶段优化计划》§5.1）。</li>
+      <li>四条硬约束：不改 98 条 API 契约、不改 <code>layout_json</code> 的 <code>{x,y,w,h,key}</code>、线上不装 Node、切流前旧前端始终可用（同上）。</li>
+      <li>后端不换框架（保留 <code>http.server</code> + Mixin）、不换数据库（SQLite）、不做微服务/容器化（同上 §6「明确不做」）。</li>
+      <li>旧前端 A-1 在「线上稳定数日」之前不删（《P4-剩余事项清单.md》A 组）。</li>
+      <li>本地切流方式只改 <code>config.json</code> 的 <code>web_dir</code>，不做双前端并行（同上 C 组「部署注意事项」）。</li>
+      <li>生产环境操作（服务器、云控制台、凭据）一律由用户本人执行；我给命令与判据。</li>
+      <li>《启动看板.bat》必须 ASCII + CRLF；《deploy/deploy.ps1》必须 UTF-8 with BOM（《README.md》第八节、脚本文件头）。</li>
+    </ul>
+  </section>
+
+  <p class="foot">本页选择保存在浏览器 localStorage（键 <code>wa-next-20261110</code>），关掉再开可还原；复制按钮走同步 <code>document.execCommand('copy')</code>，可在 HTTP 下使用。</p>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="bar-top">
+      <strong>裁定文本</strong>
+      <span class="hint">下面只读框会自动拼好，可直接复制回对话里当作指令</span>
+      <button id="btn-rec" class="ghost" type="button">用推荐组合</button>
+      <button id="btn-copy" type="button">复制文本</button>
+      <button id="btn-clear" class="plain" type="button">清空重选</button>
+    </div>
+    <textarea id="out" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+const KEY = 'wa-next-20261110';
+const GROUPS = [
+  { key: 'g1', title: '本轮主任务' },
+  { key: 'g2', title: 'B 组验收分工' },
+  { key: 'g3', title: '验证门禁节奏' },
+  { key: 'g4', title: '上线时机' },
+  { key: 'g5', title: '安全组 18081 收紧' }
+];
+function readValues() {
+  const out = {};
+  GROUPS.forEach(function (g) {
+    const el = document.querySelector('input[name="' + g.key + '"]:checked');
+    out[g.key] = el ? el.value : '';
+  });
+  return out;
+}
+function readChoices() {
+  const out = {};
+  GROUPS.forEach(function (g) {
+    const el = document.querySelector('input[name="' + g.key + '"]:checked');
+    out[g.key] = el ? el.closest('.opt').dataset.lbl : '（未选）';
+  });
+  return out;
+}
+function buildText(choices) {
+  const lines = [
+    '【work-atlas 熟悉项目后的裁定 · 2026-11-10】',
+    '依据：《README.md》第七节/第五节/第八节、《P4-剩余事项清单.md》、《架构评估与分阶段优化计划》§5.1 与 §7、《tools/tests/run_all.py》、《deploy/deploy.ps1》。',
+    ''
+  ];
+  GROUPS.forEach(function (g) { lines.push(g.title + '：' + (choices[g.key] || '（未选）')); });
+  lines.push('');
+  lines.push('已裁定不再问：React 技术栈 / 98 条 API 契约 / layout_json / 线上不装 Node / 旧前端暂不删 / 生产操作由用户执行。');
+  return lines.join('\n');
+}
+// __END_BUILD__
+function render() {
+  const values = readValues();
+  document.getElementById('out').value = buildText(readChoices());
+  try { localStorage.setItem(KEY, JSON.stringify(values)); } catch (e) { /* 隐私模式下忽略 */ }
+}
+function restore() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { saved = {}; }
+  GROUPS.forEach(function (g) {
+    // 还原时先清空同组，避免出现两个 checked
+    document.querySelectorAll('input[name="' + g.key + '"]').forEach(function (i) { i.checked = false; });
+    let el = saved[g.key] ? document.querySelector('input[name="' + g.key + '"][value="' + saved[g.key] + '"]') : null;
+    if (!el) el = document.querySelector('input[name="' + g.key + '"][data-rec="1"]');
+    if (el) el.checked = true;
+  });
+}
+function useRecommended() {
+  GROUPS.forEach(function (g) {
+    document.querySelectorAll('input[name="' + g.key + '"]').forEach(function (i) { i.checked = false; });
+    const el = document.querySelector('input[name="' + g.key + '"][data-rec="1"]');
+    if (el) el.checked = true;
+  });
+  render();
+}
+function clearAll() {
+  GROUPS.forEach(function (g) {
+    document.querySelectorAll('input[name="' + g.key + '"]').forEach(function (i) { i.checked = false; });
+  });
+  try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+  document.getElementById('out').value = buildText(readChoices());
+}
+function copyText() {
+  const ta = document.getElementById('out');
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  const btn = document.getElementById('btn-copy');
+  btn.textContent = ok ? '已复制' : '复制失败，请手动全选';
+  setTimeout(function () { btn.textContent = '复制文本'; }, 1800);
+}
+document.querySelectorAll('input[type="radio"]').forEach(function (i) {
+  i.addEventListener('change', render);
+});
+document.getElementById('btn-rec').addEventListener('click', useRecommended);
+document.getElementById('btn-copy').addEventListener('click', copyText);
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+restore();
+render();
+</script>
+</body>
+</html>

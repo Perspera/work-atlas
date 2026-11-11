@@ -318,7 +318,7 @@ export default function BoardPage() {
             className="layout"
             layout={layout}
             cols={12}
-            rowHeight={60}
+            rowHeight={64}
             margin={[12, 12]}
             compactType={null}
             preventCollision

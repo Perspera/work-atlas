@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { num, pct } from "../lib/format";
 import { useBizDate } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
@@ -57,6 +57,7 @@ export default function WavesPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [text, setText] = useState("");
   const [editing, setEditing] = useState<WaveRow | null>(null);
+  const [conflict, setConflict] = useState<string | null>(null);
   const [editNote, setEditNote] = useState("");
   const [editCarrier, setEditCarrier] = useState("");
   const [showCandidates, setShowCandidates] = useState(false);
@@ -117,10 +118,31 @@ export default function WavesPage() {
         },
       });
       toast("已保存", "ok");
+      setConflict(null);
       setEditing(null);
       void waves.refetch();
     } catch (error) {
-      toast((error as Error).message, "err");
+      if (error instanceof ApiError && error.status === 409) {
+        // 乐观锁冲突：后端提示「该波次刚被别人修改，请刷新后再试」。
+        // 保留编辑内容不关闭 Modal，刷新列表拿到最新 updated_at，提示用户确认后重试。
+        setConflict(error.message);
+        void waves.refetch();
+        toast("该波次刚被别人修改，列表已刷新；请确认内容后重新保存", "warn");
+      } else {
+        toast((error as Error).message, "err");
+      }
+    }
+  };
+
+  const retryEdit = async () => {
+    if (!editing) return;
+    const latest = waves.data?.rows.find((row) => row.id === editing.id);
+    if (latest) {
+      setEditing({ ...editing, updated_at: latest.updated_at });
+      setConflict(null);
+      toast("已取到最新数据，请重新保存", "ok");
+    } else {
+      toast("列表刷新中，请稍后再试", "warn");
     }
   };
 
@@ -257,6 +279,7 @@ export default function WavesPage() {
                         <button
                           className="btn btn-sm btn-ghost"
                           onClick={() => {
+                            setConflict(null);
                             setEditing(row);
                             setEditNote(row.note || "");
                             setEditCarrier(row.carrier_override || "");
@@ -302,10 +325,11 @@ export default function WavesPage() {
       {editing && (
         <Modal
           title={`编辑波次 ${editing.wave_no}`}
-          onClose={() => setEditing(null)}
+          onClose={() => { setConflict(null); setEditing(null); }}
           footer={
             <>
-              <button className="btn" onClick={() => setEditing(null)}>取消</button>
+              <button className="btn" onClick={() => { setConflict(null); setEditing(null); }}>取消</button>
+              {conflict && <button className="btn" onClick={() => void retryEdit()}>刷新重试</button>}
               <button className="btn btn-primary" onClick={saveEdit}>保存</button>
             </>
           }
@@ -319,6 +343,11 @@ export default function WavesPage() {
             <input className="input" placeholder="如：民生物流 / 顺丰速运" value={editCarrier}
               onChange={(event) => setEditCarrier(event.target.value)} />
           </div>
+          {conflict && (
+            <div className="small" style={{ color: "#c92a2a", marginTop: 4 }}>
+              冲突：{conflict}。编辑内容已保留，请点击「刷新重试」取回最新数据后再保存。
+            </div>
+          )}
         </Modal>
       )}
     </>

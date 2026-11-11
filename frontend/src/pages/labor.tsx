@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 import { api } from "../lib/api";
 import { num } from "../lib/format";
@@ -208,6 +209,7 @@ export default function LaborPage() {
   const date = useBizDate();
   const me = useApp((state) => state.me);
   const toast = useApp((state) => state.toast);
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"live" | "archive">("live");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -219,7 +221,9 @@ export default function LaborPage() {
   });
 
   const canAdjust = hasPerm(me, "action.labor.adjust") && data?.can_adjust;
-  const canArchive = hasPerm(me, "action.labor.archive") && data?.can_archive;
+  // 旧版 web/app.js:1388/1399 只看权限位决定是否显示，不等数据加载。
+  const canArchive = hasPerm(me, "action.labor.archive");
+  const canSettings = hasPerm(me, "action.labor.settings");
 
   const archive = async () => {
     const force = Boolean(data?.archived);
@@ -250,9 +254,11 @@ export default function LaborPage() {
           </button>
         ))}
         {canArchive && <button className="btn" onClick={archive}>存档本日</button>}
-        {data?.can_settings && <button className="btn" onClick={() => setSettingsOpen(true)}>作业设置</button>}
-        <button className="btn" onClick={() => refetch()}>刷新</button>
-      </PageHead>
+        {canSettings && <button className="btn" onClick={() => setSettingsOpen(true)}>作业设置</button>}
+        {hasPerm(me, "action.dashboard.edit") && (
+          <button className="btn" onClick={() => navigate("/board/page/labor")}>编辑布局</button>
+        )}
+        <button className="btn" onClick={() => refetch()}>刷新</button>      </PageHead>
 
       {totals && (
         <div className="panel" style={{ marginBottom: 10 }}>

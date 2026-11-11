@@ -31,6 +31,8 @@ function baseOption(categories: string[], series: Series[], horizontal?: boolean
       ? {
           type: "category",
           data: categories,
+          // ECharts 的类目轴默认把第一项画在最下方；旧版 web/charts.js drawBarH 把第一项画在最上方。
+          inverse: true,
           axisLabel: { color: "#5b6472" },
           axisTick: { show: false },
         }
@@ -41,7 +43,7 @@ function baseOption(categories: string[], series: Series[], horizontal?: boolean
       data: item.values,
       barMaxWidth: 26,
       emphasis: { focus: "series" },
-      label: { show: Boolean(showValues), position: "top", color: "#5b6472" },
+      label: { show: Boolean(showValues), position: horizontal ? "right" : "top", color: "#5b6472" },
     })),
   };
 }

@@ -8,7 +8,7 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname, "src") },
   },
   build: {
-    outDir: "../web/dist",
+    outDir: "../dist",
     emptyOutDir: true,
     sourcemap: false,
   },

@@ -13,7 +13,7 @@
 ## 一、三分钟启动
 
 1. 双击 **`启动看板.bat`**：黑色窗口里出现中文横幅后，会**自动等服务就绪再打开浏览器**（不再出现"打开太早、无法连接"）
-2. 交付时已初始化管理员账号：**admin / Admin12345** —— 登录后请第一时间在右上角「修改密码」改掉
+2. 交付时已初始化管理员账号：**admin / Admin12345**（本地开发库已改密为 `admin123`，全新安装仍是 `Admin12345`，登录后请第一时间在右上角「修改密码」改掉；默认口令账号会被要求先改密，接口返回 428）
 3. 用管理员登录 → 左侧「数据源」页确认目录可达 → 把 WMS/TMS 下载文件丢进数据目录（出库文件可在「出库归档」页查询）
 
 > 窗口不要关：关掉窗口 = 停服务。如果服务已经在跑，再双击脚本只会打开浏览器，不会重复起进程。
@@ -346,7 +346,8 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
   db.py                SQLite 表结构与迁移（含 dealer_lookup 视图）
   templates.py         内置看板模板（自由画布模板 + 5 个导航页默认布局）
   config.json          数据目录、端口、扫描间隔、截止时间
-  web/                 前端（index.html / app.js / charts.js / grid.js / styles.css）
+  frontend/            React 前端源码（React 19 + Vite + TS）
+  dist/                前端构建产物（不入库，由 Python 托管）
   data/dashboard.db    业务库（WAL）
   data/backup/         每日自动备份 + 升级/清理前备份（保留 30 天）
   data/server.log      运行日志
@@ -365,7 +366,7 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 - 看日志：`data/server.log`。
 - 手动重扫：页面「数据源 → 立即扫描」，或命令行 `python ingest.py --scan`。
 - 复算校验：`python ingest.py --check`（打印当日单量/进度数字）。
-- 自检：`python tools/tests/smoke_test.py`（登录/权限/数据范围/取数全链路）。
+- 自检：先起服务再跑 `python tools/tests/smoke_test.py [http://127.0.0.1:8787] [admin密码]`（登录/权限/数据范围/取数全链路）。口令留空会依次尝试 `admin123` / `Admin12345`；**该脚本会写当前 `data/dashboard.db`**（临时波次、测试账号、存档快照，跑完自动清理/还原），请在隔离副本或测试库上运行，勿对生产库跑。脚本会自动备份并还原 `yue`/`clerk` 测试账号、按 P1 强制改密门禁（428）登录后先改密再取数。
 
 **备份**：服务每天首次扫描时自动把库备份到 `data/backup/dashboard_YYYYMMDD.db`，保留 30 天（`backup_keep_days`）。恢复时停服务、用备份文件替换 `data/dashboard.db` 即可。
 

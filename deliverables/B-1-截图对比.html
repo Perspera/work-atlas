@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B-1 双版本截图对比 · work-atlas</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 40px 64px; background: #f2f4f8; color: #1f2430;
+         font: 14px/1.7 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lede { color: #5b6472; margin: 0 0 8px; }
+  .meta { color: #78808e; font-size: 12px; margin-bottom: 28px; }
+  .card { background: #fff; border: 1px solid #e2e6ee; border-radius: 10px;
+          padding: 18px 20px 22px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(20,30,50,.04); }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .card h2 code { font-size: 12px; color: #7a8291; background: #f1f3f7; border-radius: 4px; padding: 1px 6px; }
+  .note { margin: 0 0 14px; color: #4a5464; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  figure { margin: 0; }
+  figcaption { font-size: 12px; color: #6b7383; margin-bottom: 6px; }
+  img { width: 100%; border: 1px solid #e2e6ee; border-radius: 6px; display: block; background: #fff; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <h1>B-1 双版本截图对比</h1>
+  <p class="lede">左：React 版 <code>http://127.0.0.1:8891</code>；右：旧版 <code>http://127.0.0.1:8892</code>。同库快照（sqlite3 backup API）、同账号 admin、1920×1080、整页截图。</p>
+  <p class="meta">采集：Edge headless + CDP（.scratch/shoot.mjs），48 张 / 0 失败；DOM 探针 72 项 / 0 失败；几何配对 27/27 + 10/10 尺寸一致。</p>
+
+  <section class="card">
+    <h2>今日总览 <code>overview</code></h2>
+    <p class="note">布局 27/27 尺寸一致（dw=dh=0，dy 恒为 -29，来自页头工具栏行高差）。<br>工具栏已补齐：编辑布局 / 发布为全员默认 / 导出单量表 CSV / 打印单量表 / 刷新。<br>差异（已知、有意）：React 多「导出单量表 CSV」（Q1 新增能力）；旧版「整理布局」在 React 里只存在于 /board 编辑器；「恢复默认」仅当存在个人布局时显示。<br>KPI 卡片样式：旧版有左侧色条 + 标题栏，React 为标签 + 数字，属视觉重设计。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-overview.png" alt="React 今日总览"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-overview.png" alt="旧版 今日总览"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>单量分析 <code>volume</code></h2>
+    <p class="note">11 个面板完全一致；标题、副标题、按钮一致。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-volume.png" alt="React 单量分析"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-volume.png" alt="旧版 单量分析"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>人工作业量 <code>labor</code></h2>
+    <p class="note">工具栏一致：实时 / 存档 / 存档本日 / 作业设置 / 编辑布局 / 刷新。<br>KPI 数值与格式一致（拣货人效 44.3 行/小时、复核人效 51.7 行/小时）。<br>「人员明细（拣货 / 复核分开）」React 为 7 列表格，与旧版一致；15 人柱状图均为横向、由大到小。<br>组件几何 10/10 一致（dw=dh=dy=0）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-labor.png" alt="React 人工作业量"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-labor.png" alt="旧版 人工作业量"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>订单组登记 <code>orders</code></h2>
+    <p class="note">表头 15 列一致，筛选条一致；副标题已补回「按波次登记顺序排列」。<br>面板「订单组 · 2026-11-11」一致（共 0 组 / 0 行 / 金额 0 元）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-orders.png" alt="React 订单组登记"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-orders.png" alt="旧版 订单组登记"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>动力电池登记 <code>battery</code></h2>
+    <p class="note">三个面板 18/18/18 列一致：筛选 / 当天已登记明细（实际登记日期）/ 动力电池订单组。<br>「当天已登记明细」在无数据时也渲染完整表头（此前 React 为 0 列）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-battery.png" alt="React 动力电池登记"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-battery.png" alt="旧版 动力电池登记"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>波次登记 <code>waves</code></h2>
+    <p class="note">2 个面板一致（已登记波次 7 列）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-waves.png" alt="React 波次登记"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-waves.png" alt="旧版 波次登记"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>预警中心 <code>alerts</code></h2>
+    <p class="note">2 个面板一致（我的预警消息 5 列 / 线路截止时间与负责人 8 列）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-alerts.png" alt="React 预警中心"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-alerts.png" alt="旧版 预警中心"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>看板总台 <code>dashboard</code></h2>
+    <p class="note">三个面板一致：导航页看板 / 固定分析页 / 专题看板。<br>「固定分析页」为本次补回（旧版有、React 曾缺）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-dashboard.png" alt="React 看板总台"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-dashboard.png" alt="旧版 看板总台"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>数据源 <code>sources</code></h2>
+    <p class="note">面板顺序已对齐旧版：数据源目录 → 运输单未匹配波次 → 文件台账 → WMS 自动下载 → 每日归档 → 扫描文件归档 → 未映射经销商。<br>按钮已补齐「导入经销商 XLSX」「批量导入更新」，与旧版一致。<br>差异（已知、有意）：React 多「扫描文件归档」面板与「搜索」按钮（Q1 新补能力；旧版该面板是死代码，实际不显示）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-sources.png" alt="React 数据源"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-sources.png" alt="旧版 数据源"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>出库归档 <code>outbound</code></h2>
+    <p class="note">1 个面板一致（归档数据 40 列）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-outbound.png" alt="React 出库归档"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-outbound.png" alt="旧版 出库归档"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>用户与权限 <code>admin</code></h2>
+    <p class="note">4 个页签一致。差异：React 把「新建用户」放在页头工具栏，旧版放在用户面板表头（位置差异，非缺失）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-admin.png" alt="React 用户与权限"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-admin.png" alt="旧版 用户与权限"></figure>
+    </div>
+  </section>
+  <section class="card">
+    <h2>审计日志 <code>audit</code></h2>
+    <p class="note">1 个面板一致（6 列）。</p>
+    <div class="pair">
+      <figure><figcaption>React（8891）</figcaption><img src="B1-screenshots/R-audit.png" alt="React 审计日志"></figure>
+      <figure><figcaption>旧版（8892）</figcaption><img src="B1-screenshots/L-audit.png" alt="旧版 审计日志"></figure>
+    </div>
+  </section>
+</body>
+</html>

@@ -6,9 +6,15 @@
 
 说明：
 - 会临时登记 2 个"有数据"的波次 + 1 个"待数据"波次，跑完自动删除登记；
-- 会创建/重置两个测试账号（yue 只读+广东范围、clerk 登记员）；
-- 存档会真实写入 daily_archive（force 覆盖同日快照），这是有意义的真实数据，不删除。
+  候选按波次号倒序，脚本优先挑带最终订单组号的波次（groups>1），
+  避开无组号的在途波次，否则订单组台账为空会让断言崩溃；
+- 会创建/重置两个测试账号（yue 只读+广东范围、clerk 登记员），跑完恢复原状；
+- 存档会真实写入 daily_archive（force 覆盖同日快照），跑完清理本次写入；
+- P1 起后端对 must_change_pwd=1 / pwd_is_default=1 的账号强制改密（428），
+  新建/重置的测试账号登录后必须先调 /api/change-password 才能取数。
+- 注意：本脚本会写当前 data/dashboard.db，请指向隔离副本或测试库运行，勿对生产库跑。
 """
+import atexit
 import json
 import os
 import sqlite3
@@ -20,8 +26,15 @@ import urllib.request
 from http.cookiejar import CookieJar
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8787"
-ADMIN_PWD = sys.argv[2] if len(sys.argv) > 2 else "Admin12345"
+# 未显式给口令时按候选依次尝试：本地库已改密为 admin123，全新安装仍是交付默认 Admin12345
 ADMIN_USER = "admin"
+ADMIN_PWD = sys.argv[2] if len(sys.argv) > 2 else None
+ADMIN_PWD_CANDIDATES = ["admin123", "Admin12345"]
+# 测试账号口令（>=8 位含字母+数字）；改密后仍用同一口令，避免改动后续断言
+TEST_USERS = (
+    ("yue", "Yue12345", "viewer", "粤区专员"),
+    ("clerk", "Clerk12345", "editor", "单据登记员"),
+)
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "dashboard.db")
 
 failures = []
@@ -84,14 +97,127 @@ def db_exec(sql, params=()):
         conn.close()
 
 
+# 测试账号在数据库里的原始状态：None 表示原本不存在；dict 表示原本存在，
+# 用于退出时精确恢复（口令/角色/范围），使脚本可重复运行且不留垃圾账号。
+_test_user_backup = {}
+
+
+def _delete_test_user(conn, uid):
+    for table in ("sessions", "user_permissions", "group_members"):
+        conn.execute("DELETE FROM %s WHERE user_id=?" % table, (uid,))
+    conn.execute("DELETE FROM data_scopes WHERE owner_type='user' AND owner_id=?", (uid,))
+    conn.execute("DELETE FROM users WHERE id=?", (uid,))
+
+
+def backup_test_users():
+    """记录 yue/clerk 的原始状态。原本不存在 -> 退出时删除；已存在 -> 退出时还原。"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        for username, _pwd, _role, _display in TEST_USERS:
+            row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            if row is None:
+                _test_user_backup[username] = None
+                continue
+            uid = row["id"]
+            _test_user_backup[username] = {
+                "user": dict(row),
+                "scopes": [dict(r) for r in conn.execute(
+                    "SELECT dim, values_json FROM data_scopes WHERE owner_type='user' AND owner_id=?", (uid,))],
+                "perms": [dict(r) for r in conn.execute(
+                    "SELECT perm_code, effect FROM user_permissions WHERE user_id=?", (uid,))],
+                "groups": [dict(r) for r in conn.execute(
+                    "SELECT group_id FROM group_members WHERE user_id=?", (uid,))],
+            }
+    finally:
+        conn.close()
+
+
+def restore_test_users():
+    """幂等清理：新建的账号删掉，原有账号逐字段还原（含口令哈希/salt/范围/权限/组）。"""
+    if not _test_user_backup:
+        return
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        for username, backup in _test_user_backup.items():
+            row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+            if row:
+                _delete_test_user(conn, row[0])
+            if backup is None:
+                continue
+            u = backup["user"]
+            cols = [c for c in ("username", "display_name", "pwd_hash", "salt", "status",
+                                "must_change_pwd", "pwd_is_default", "last_login_at", "created_at")
+                    if c in u]
+            placeholders = ",".join("?" * len(cols))
+            conn.execute(
+                "INSERT INTO users(id,%s) VALUES(?,%s)" % (",".join(cols), placeholders),
+                [u["id"]] + [u[c] for c in cols],
+            )
+            for s in backup["scopes"]:
+                conn.execute(
+                    "INSERT INTO data_scopes(owner_type, owner_id, dim, values_json) VALUES('user',?,?,?)",
+                    (u["id"], s["dim"], s["values_json"]),
+                )
+            for p in backup["perms"]:
+                conn.execute(
+                    "INSERT INTO user_permissions(user_id, perm_code, effect) VALUES(?,?,?)",
+                    (u["id"], p["perm_code"], p["effect"]),
+                )
+            for g in backup["groups"]:
+                conn.execute(
+                    "INSERT INTO group_members(group_id, user_id) VALUES(?,?)",
+                    (g["group_id"], u["id"]),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+    _test_user_backup.clear()
+
+
+def ensure_change_password(client, username, password):
+    """登录测试账号后清掉 must_change_pwd/pwd_is_default 门禁（428），否则取数全被拦。
+
+    /api/change-password 要求 new 与 old 不同亦可、只校验 old 正确 + new 合规；
+    这里用「加后缀 X」的合规新口令，且该接口不轮换会话，cookie 仍然有效。
+    """
+    client.call("POST", "/api/login", {"username": username, "password": password})
+    status, _ = client.call("POST", "/api/change-password", {
+        "old_password": password, "new_password": password + "X",
+    })
+    check("测试账号 %s 改密解除 428 门禁" % username, status == 200, str(status))
+    # 会话未轮换，确认现在能正常取数（不是 428）
+    me = client.call("GET", "/api/me")[1]
+    check("测试账号 %s 可正常取数" % username,
+          not me.get("user", {}).get("must_change_pwd"), str(me.get("user", {})))
+
+
 def main():
+    global ADMIN_PWD
     admin = Client()
     status, _ = admin.call("GET", "/api/health")
     check("服务可访问", status == 200, str(status))
-    status, _ = admin.call("POST", "/api/login", {"username": ADMIN_USER, "password": ADMIN_PWD})
-    check("管理员登录", status == 200, str(status))
     if status != 200:
         return 1
+
+    # 口令候选：显式给值就只用给的值；否则按「本地已改密 / 全新安装默认」依次尝试。
+    # 用同一个 Client 循环，成功的登录会把会话 cookie 留在该 Client 上，避免遗留孤儿 session。
+    candidates = [ADMIN_PWD] if ADMIN_PWD else ADMIN_PWD_CANDIDATES
+    login_ok = False
+    for pwd in candidates:
+        st, _ = admin.call("POST", "/api/login", {"username": ADMIN_USER, "password": pwd})
+        if st == 200:
+            ADMIN_PWD = pwd
+            login_ok = True
+            break
+    check("管理员登录", login_ok,
+          "尝试了 %s；若口令已改请显式传入第二个参数" % (candidates,))
+    if not login_ok:
+        return 1
+
+    # 先备份测试账号状态并注册退出清理，保证脚本中途异常/失败也不留垃圾账号
+    backup_test_users()
+    atexit.register(restore_test_users)
 
     meta = admin.call("GET", "/api/meta")[1]
     rng = meta.get("data_range") or {}
@@ -104,9 +230,14 @@ def main():
     check("日期列表包含今天（即使今天还没登记）", meta.get("today") in biz_dates, str(biz_dates[:4]))
 
     # ---------- 待数据波次 + 正常波次 ----------
+    # 候选波次按波次号倒序，最前面常是"在途波次"：明细行还没生成最终订单组号，
+    # COUNT(DISTINCT group_no) 只有空串 1 个（groups==1），登记它们会让订单组台账
+    # 为空、后续断言取 rows[0] 直接崩。优先挑已有最终订单组号（groups > 1）的波次，
+    # 保证台账有数据可跑，使脚本在任何数据态下都能一键全绿。
     candidates = admin.call("GET", "/api/waves/candidates?date=" + date)[1]["rows"]
-    known = [row["wave_no"] for row in candidates][:2]
-    check("至少有 2 个可登记波次", len(known) == 2, str(known))
+    grouped = [row for row in candidates if (row.get("groups") or 0) > 1]
+    known = [row["wave_no"] for row in (grouped or candidates)][:2]
+    check("至少有 2 个可登记波次（含订单组数据）", len(known) == 2, str(known))
     pending_wave = "WAVETEST%s" % time.strftime("%H%M%S")
     status, created = admin.call(
         "POST", "/api/waves", {"date": date, "waves": known + [pending_wave]}
@@ -617,10 +748,7 @@ def main():
 
     # ---------- 权限 ----------
     users = admin.call("GET", "/api/users")[1]["rows"]
-    for username, password, role, display in (
-        ("yue", "Yue12345", "viewer", "粤区专员"),
-        ("clerk", "Clerk12345", "editor", "单据登记员"),
-    ):
+    for username, password, role, display in TEST_USERS:
         existing = [u for u in users if u["username"] == username]
         if existing:
             uid = existing[0]["id"]
@@ -634,7 +762,8 @@ def main():
             admin.call("PUT", "/api/scopes/user/%d" % uid, {"scopes": {"region": ["广东"]}})
 
     yue = Client()
-    yue.call("POST", "/api/login", {"username": "yue", "password": "Yue12345"})
+    # 新建/重置账号带 must_change_pwd=1，先改密解除 428 门禁再取数
+    ensure_change_password(yue, "yue", "Yue12345")
     me_yue = yue.call("GET", "/api/me")[1]
     check("受限用户数据范围=广东", me_yue["scopes"].get("region") == ["广东"], str(me_yue.get("scopes")))
     ov_yue = yue.call("GET", "/api/overview?date=" + date)[1]
@@ -655,7 +784,7 @@ def main():
     check("只读用户不能登记动力电池", status == 403, str(status))
 
     clerk = Client()
-    clerk.call("POST", "/api/login", {"username": "clerk", "password": "Clerk12345"})
+    ensure_change_password(clerk, "clerk", "Clerk12345")
     status, _ = clerk.call("PUT", "/api/order-groups/%s?date=%s" % (target["group_no"], date), {"note": "登记员改"})
     check("登记员可改订单组", status == 200, str(status))
     admin.call("DELETE", "/api/order-groups/%s?date=%s" % (target["group_no"], date))

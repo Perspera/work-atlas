@@ -18,6 +18,8 @@ type QueryValue = string | number | boolean | null | undefined;
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
+  /** 原始请求体（文件上传 / CSV 文本）：直接发送，不做 JSON 序列化。 */
+  rawBody?: BodyInit;
   query?: Record<string, QueryValue>;
 }
 
@@ -35,8 +37,10 @@ function buildUrl(path: string, query?: Record<string, QueryValue>) {
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method || "GET";
   const headers: Record<string, string> = {};
-  let body: string | undefined;
-  if (options.body !== undefined) {
+  let body: BodyInit | undefined;
+  if (options.rawBody !== undefined) {
+    body = options.rawBody;
+  } else if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(options.body);
   }
