@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "WMS 自动下载 → 上传入库 全链路",
+    "subtitle": "下载机采集 → HTTP 上传 → 服务器落盘即入库",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "output": "deliverables/wms-ingest-pipeline.html",
+    "legend": {
+      "entries": {
+        "external": { "label": "外部系统 / 调度" },
+        "frontend": { "label": "浏览器页面" },
+        "backend": { "label": "下载机脚本" },
+        "security": { "label": "校验 / 鉴权" },
+        "messagebus": { "label": "传输通道" },
+        "database": { "label": "数据落库" }
+      }
+    }
+  },
+  "lanes": [
+    { "id": "sched", "label": "调度 · Windows 任务计划" },
+    { "id": "client", "label": "下载机 · Chrome + Puppeteer" },
+    { "id": "transfer", "label": "传输 · HTTP" },
+    { "id": "server", "label": "看板服务器 · 阿里云" },
+    { "id": "exception", "label": "异常 / 跳过", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "p1", "label": "采集", "fromCol": 0, "toCol": 1, "variant": "emphasis" },
+    { "id": "p2", "label": "导出与校验", "fromCol": 2, "toCol": 3 },
+    { "id": "p3", "label": "上传与入库", "fromCol": 4, "toCol": 5, "variant": "emphasis" }
+  ],
+  "groups": [
+    { "id": "g_client", "label": "下载机内完成", "lane": "client", "fromCol": 1, "toCol": 3 },
+    { "id": "g_server", "label": "服务器侧", "lane": "server", "fromCol": 5, "toCol": 5 }
+  ],
+  "mainPath": ["cron", "portal", "export", "verify", "upload", "nginx"],
+  "nodes": [
+    { "id": "cron", "lane": "sched", "col": 0, "type": "external", "icon": "calendar", "label": "定时任务触发", "sublabel": "每 10 分钟", "tag": "wscript", "width": 130 },
+    { "id": "portal", "lane": "client", "col": 1, "type": "frontend", "icon": "frontend", "label": "打开门户并查询", "sublabel": "复用 aTrust 会话", "width": 140 },
+    { "id": "export", "lane": "client", "col": 2, "type": "backend", "icon": "backend", "label": "导出并下载", "sublabel": "捕获 excel.do", "width": 130 },
+    { "id": "verify", "lane": "client", "col": 3, "type": "security", "icon": "security", "label": "表头校验 + 留档", "sublabel": "订单日期 / 波次号", "width": 150 },
+    { "id": "upload", "lane": "transfer", "col": 4, "type": "messagebus", "icon": "messagebus", "label": "POST 上传", "sublabel": "/api/ingest/upload", "width": 150 },
+    { "id": "nginx", "lane": "server", "col": 5, "type": "cloud", "icon": "cloud", "label": "nginx 收包落盘", "sublabel": "白名单 + 32MB", "width": 150, "yOffset": -60 },
+    { "id": "ingest", "lane": "server", "col": 5, "type": "database", "icon": "database", "label": "扫描入库 + 广播", "sublabel": "ship_lines / 出库归档", "width": 160, "yOffset": 60 },
+    { "id": "offline", "lane": "exception", "col": 1, "type": "external", "icon": "failure", "label": "aTrust 掉线", "sublabel": "下载失败", "width": 120 },
+    { "id": "badtoken", "lane": "exception", "col": 4, "type": "security", "icon": "failure", "label": "令牌不匹配", "sublabel": "401 拒绝", "width": 120 },
+    { "id": "dup", "lane": "exception", "col": 5, "type": "database", "icon": "neutral", "label": "内容未变化", "sublabel": "跳过不重扫", "width": 120 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "cron", "to": "portal", "label": "到点执行", "role": "main" },
+    { "id": "e2", "from": "portal", "to": "export", "label": "查询结果", "role": "main" },
+    { "id": "e3", "from": "export", "to": "verify", "label": "xlsx 文件", "role": "main" },
+    { "id": "e4", "from": "verify", "to": "upload", "label": "校验通过", "role": "main" },
+    { "id": "e5", "from": "upload", "to": "nginx", "label": "200 OK", "role": "main" },
+    { "id": "e6", "from": "nginx", "to": "ingest" },
+    { "id": "e7", "from": "portal", "to": "offline", "label": "会话失效", "role": "branch" },
+    { "id": "e8", "from": "upload", "to": "badtoken", "label": "令牌错误", "role": "error" },
+    { "id": "e9", "from": "ingest", "to": "dup", "label": "字节相同", "role": "branch" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "一次正常运行",
+      "items": [
+        "08:00–21:00 每 10 分钟由任务计划唤醒",
+        "Chrome 复用已登录会话：查询 → 导出 xlsx",
+        "表头校验通过后上传，响应直接带回入库行数"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "常见故障与处置",
+      "items": [
+        "aTrust 未登录 → net::ERR_CONNECTION_TIMED_OUT，重新登录即可",
+        "令牌不匹配 → 401，面板重置令牌后更新 secrets.local.json",
+        "服务器目录不可写 → 500 写入数据源目录失败"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "手工命令",
+      "items": [
+        "schtasks /Run /TN \"WMS-Daily-Download\"",
+        "node sync_to_server.js --config wms.config.json --dry-run",
+        "python install_task.py（新机器装任务）"
+      ]
+    }
+  ]
+}

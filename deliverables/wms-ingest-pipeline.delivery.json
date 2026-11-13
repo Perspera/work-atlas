@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "1adea3b8-97fb-4318-a49c-4cd3cf470100",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "D:\\newapp\\projects\\work-atlas\\.archify\\workflow-wms-ingest-20261113-170800\\candidate.json",
+  "output": "D:\\newapp\\projects\\work-atlas\\deliverables\\wms-ingest-pipeline.html",
+  "specification": {
+    "sha256": "7707943eb2172bab81aa8b1a47334ed31cea8ea3d00caf5c5d95066bd1e4b080",
+    "bytes": 5131
+  },
+  "artifact": {
+    "sha256": "578b48c5a2cfd0dafecf58d3cfd5adb41b0482b967a7b2273121dc337e78cde6",
+    "bytes": 765854
+  }
+}
