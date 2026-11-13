@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>看板 UI 优化方案 · work-atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#f2f4f7; --surface:#ffffff; --raised:#eef0f3;
+  --border:#e3e7ec; --rule:#f0f2f5; --control:#d4d4d4;
+  --text:#0a0a0a; --muted:#6b6b6b; --accent:#141414;
+  --positive:#2e7d32; --negative:#c4242a; --warning:#92400e;
+  --chart-1:#141414; --chart-2:#8a8a8a; --chart-3:#1d5fbf;
+  --r-card:8px; --r-control:6px;
+  --gap:12px; --pad:24px; --ctl:36px;
+  --fs-title:32px; --fs-section:16px; --fs-kpi:30px; --fs-body:14px; --fs-small:12px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--text);
+  font-family:"Geist","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  font-size:var(--fs-body); line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- top bar: no chrome, no brand colour ---- */
+.bar{
+  height:46px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:0 var(--pad); border-bottom:1px solid var(--border); background:var(--surface);
+}
+.bar-name{font-size:13px; font-weight:500; letter-spacing:-.01em}
+.bar-meta{font-size:13px; color:var(--muted)}
+.bar-meta b{font-weight:500; color:var(--text)}
+
+.wrap{max-width:1200px; margin:0 auto; padding:28px var(--pad) 64px}
+
+/* ---- intro ---- */
+.intro{margin:0 0 20px}
+h1{font-size:var(--fs-title); font-weight:700; letter-spacing:-.03em; line-height:1.15; margin:0}
+.lede{margin:10px 0 0; font-size:15px; color:var(--muted); max-width:62ch}
+.facts{display:flex; flex-wrap:wrap; gap:0; margin:20px 0 0; padding:0; list-style:none}
+.facts li{padding:0 22px; border-left:1px solid var(--border)}
+.facts li:first-child{padding-left:0; border-left:0}
+.fact-v{font-size:20px; font-weight:500; letter-spacing:-.02em}
+.fact-k{font-size:13px; color:var(--muted); margin-top:2px}
+
+/* ---- section rhythm ---- */
+section{margin:28px 0 0}
+h2{font-size:var(--fs-section); font-weight:500; letter-spacing:-.01em; margin:0 0 12px}
+h2 .h2-sub{font-size:13px; font-weight:400; color:var(--muted); margin-left:8px; letter-spacing:0}
+
+/* ---- card ---- */
+.card{background:var(--surface); border-radius:var(--r-card); padding:16px}
+.card-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 10px}
+.card-title{font-size:13px; font-weight:500}
+.card-sub{font-size:13px; color:var(--muted)}
+
+/* ---- KPI row ---- */
+.kpirow{display:grid; grid-template-columns:repeat(6,1fr); gap:var(--gap)}
+.kpi{background:var(--surface); border-radius:var(--r-card); padding:14px 16px; min-height:96px; display:flex; flex-direction:column; justify-content:center}
+.kpi-label{font-size:13px; color:var(--muted)}
+.kpi-value{font-size:var(--fs-kpi); font-weight:500; letter-spacing:-.03em; line-height:1.22; margin-top:4px}
+.kpi-value.is-money{font-weight:700}
+.kpi-unit{font-size:14px; font-weight:400; color:var(--muted); margin-left:3px; letter-spacing:0}
+.kpi-delta{font-size:13px; color:var(--muted); margin-top:4px}
+.kpi-delta b{font-weight:500}
+.down b{color:var(--negative)}
+
+/* ---- two column ---- */
+.duo{display:grid; grid-template-columns:2fr 1fr; gap:var(--gap); margin-top:var(--gap)}
+
+/* ---- line chart ---- */
+.chart{width:100%; height:auto; display:block}
+.legend{display:flex; gap:16px; font-size:13px; color:var(--muted); margin-top:8px}
+.legend i{display:inline-block; width:14px; height:2px; vertical-align:middle; margin-right:6px}
+
+/* ---- ranked bars ---- */
+.rank{list-style:none; margin:0; padding:0; font-size:13px}
+.rank li{display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:7px 0; border-bottom:1px solid var(--rule)}
+.rank li:last-child{border-bottom:0; padding-bottom:0}
+.rank .r-label{grid-column:1; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.rank .r-val{grid-column:2; font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px}
+.rank .r-track{grid-column:1/-1; height:6px; background:var(--rule); border-radius:3px; overflow:hidden}
+.rank .r-fill{height:6px; background:var(--chart-1); border-radius:3px}
+.rank .r-fill.mark{background:var(--chart-3)}
+
+/* ---- table ---- */
+.tbl{width:100%; border-collapse:collapse; font-size:13px}
+.tbl th{font-size:13px; font-weight:400; color:var(--muted); text-align:left; padding:0 10px 8px 0; border-bottom:1px solid var(--border); white-space:nowrap}
+.tbl td{padding:0 10px 0 0; height:40px; border-bottom:1px solid var(--rule); vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right; font-variant-numeric:tabular-nums}
+.tbl th.r{text-align:right}
+.tbl .mono{font-family:"Geist",ui-monospace,monospace; font-size:13px; color:var(--muted); letter-spacing:.01em} /* taste-skill-ignore: 波次号是 ID 列，等宽可对齐 */
+.tbl .strong{font-weight:500}
+.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+
+/* ---- pills ---- */
+.pill{display:inline-block; font-size:13px; line-height:18px; padding:0 8px; border-radius:999px; white-space:nowrap}
+.pill-ok{background:#dcfae5; color:#04250e}
+.pill-warn{background:#fffbeb; color:var(--warning)}
+.pill-neutral{background:var(--raised); color:#3d3d3d}
+
+/* ---- token sheet ---- */
+.tok{display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; margin:0 0 18px}
+.sw{border-radius:var(--r-control); overflow:hidden; background:var(--ground)}
+.sw-chip{height:44px}
+.sw-name{font-size:13px; padding:6px 8px; display:flex; justify-content:space-between; gap:6px}
+.sw-name b{font-weight:500}
+.sw-name span{color:var(--muted); font-variant-numeric:tabular-nums}
+.scale{display:grid; grid-template-columns:64px 1fr auto; gap:2px 12px; font-size:13px; color:var(--muted); align-items:baseline}
+.scale .s-v{color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.scale .s-n{font-variant-numeric:tabular-nums}
+.h3{font-size:13px; font-weight:500; margin:0 0 8px}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:24px}
+
+/* ---- before / after specimens ---- */
+.pair{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:0 0 16px}
+.pair:last-child{margin-bottom:0}
+.spec{background:var(--ground); border-radius:var(--r-card); padding:14px}
+.spec-label{font-size:13px; color:var(--muted); margin:0 0 10px}
+.spec-label b{font-weight:500; color:var(--text)}
+.now .spec-label b{color:var(--negative)}
+.then .spec-label b{color:var(--positive)}
+/* the "now" KPI: label + value, panel header above, shadowed card */
+.s-now-kpi{background:var(--surface); border-radius:10px; padding:10px 12px; box-shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.04)} /* taste-skill-ignore: 复刻现状的对比样张，位于 data-ui 内 */
+.s-now-kpi .lab{font-size:12.5px; color:#5b6472}
+.s-now-kpi .val{font-size:26px; font-weight:700; color:#101828; letter-spacing:0}
+.s-now-kpi .val span{font-size:13px; font-weight:400; color:#5b6472}
+/* the "then" KPI */
+.s-then-kpi{background:var(--surface); border-radius:var(--r-card); padding:10px 12px}
+.s-then-kpi .lab{font-size:13px; color:var(--muted)}
+.s-then-kpi .val{font-size:30px; font-weight:500; letter-spacing:-.03em; line-height:1.22}
+.s-then-kpi .val span{font-size:14px; font-weight:400; color:var(--muted)}
+.s-then-kpi .dl{font-size:13px; color:var(--negative); margin-top:2px}
+/* header comparison */
+.s-head-now{background:var(--surface); border-radius:10px 10px 0 0; border-bottom:1px solid var(--border)}
+.s-head-now .hd{background:#fbfdff; padding:9px 12px; font-size:13.5px; font-weight:600; color:#101828}
+.s-head-now .bd{padding:10px 12px; font-size:13px; color:#5b6472}
+.s-head-then{background:var(--surface); border-radius:var(--r-card)}
+.s-head-then .hd{padding:9px 12px 0; font-size:13px; font-weight:500; color:var(--text)}
+.s-head-then .bd{padding:6px 12px 10px; font-size:13px; color:var(--muted)}
+/* controls */
+.ctl-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.btn{height:var(--ctl); padding:0 14px; border-radius:var(--r-control); border:1px solid var(--control); background:var(--surface); color:var(--text); font-size:13px; font-family:inherit; cursor:pointer}
+.btn-primary{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn-now{height:26px; padding:0 10px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; color:#101828; font-size:13px; font-family:inherit}
+.input{height:var(--ctl); padding:0 10px; border-radius:var(--r-control); border:1px solid var(--control); background:var(--surface); font-size:13px; font-family:inherit; color:var(--text); min-width:0}
+.input-now{height:30px; padding:0 8px; border-radius:8px; border:1px solid #e2e8f0; font-size:13px; font-family:inherit}
+/* empty state */
+.empty{background:var(--surface); border-radius:var(--r-card); padding:18px 12px; text-align:center}
+.empty .e-t{font-size:13px; font-weight:500}
+.empty .e-s{font-size:13px; color:var(--muted); margin-top:4px}
+
+/* ---- wireframes ---- */
+.wire{display:grid; gap:6px; background:var(--ground); border-radius:var(--r-card); padding:12px}
+.wbox{background:var(--surface); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); padding:6px; text-align:center}
+.wbox.tall{min-height:78px}
+.wbox.mark{background:#e8eefb; color:#174c9b}
+.wrow{display:grid; gap:6px}
+.wrow.c6{grid-template-columns:repeat(6,1fr)}
+.wrow.c3{grid-template-columns:repeat(3,1fr)}
+.wrow.c2{grid-template-columns:1fr 1fr}
+.wrow.c21{grid-template-columns:2fr 1fr}
+.w-note{font-size:13px; color:var(--muted); margin:10px 0 0}
+
+/* ---- plan table ---- */
+.pri{display:inline-block; font-size:12px; font-weight:500; padding:0 7px; line-height:18px; border-radius:6px; background:var(--raised); color:#3d3d3d}
+.pri.p0{background:var(--accent); color:#fff}
+
+footer{margin:36px 0 0; padding-top:20px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; font-size:13px; color:var(--muted)}
+footer b{font-weight:500; color:var(--text)}
+
+@media (max-width:1080px){
+  .kpirow{grid-template-columns:repeat(3,1fr)}
+  .duo{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  :root{--pad:16px; --fs-title:26px}
+  .bar{height:auto; padding:10px var(--pad); flex-wrap:wrap; gap:2px}
+  .bar-meta{font-size:11.5px}
+  h1{font-size:var(--fs-title)}
+  .facts li{padding:0 14px}
+  .kpirow{grid-template-columns:repeat(2,1fr)}
+  .kpi{min-height:84px; padding:12px}
+  .kpi-value{font-size:26px}
+  .split{grid-template-columns:1fr}
+  .pair{grid-template-columns:1fr}
+  .wrow.c6{grid-template-columns:repeat(3,1fr)}
+  .wrow.c21,.wrow.c2{grid-template-columns:1fr}
+  .wrow.c3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-name">work-atlas · 看板 UI 优化方案</div>
+  <div class="bar-meta">数据日 <b>2026-11-10</b> · 全部数字取自本地库</div>
+</div>
+
+<main class="wrap">
+
+  <div class="intro">
+    <h1>看板 UI 优化方案</h1>
+    <p class="lede">12 个页面共用一套组件。下面先给出按实测重排后的总览，再逐项对照现状与建议：改哪些 token、组件长什么样、布局怎么排、按什么顺序落地。所有数字来自本地 8891 实例的真实渲染与真实数据。</p>
+    <ul class="facts">
+      <li><div class="fact-v">12</div><div class="fact-k">页面 / 一套组件</div></li>
+      <li><div class="fact-v">27</div><div class="fact-k">总览组件</div></li>
+      <li><div class="fact-v">8 → 6</div><div class="fact-k">字号种类</div></li>
+      <li><div class="fact-v">27 → 0</div><div class="fact-k">静止面板阴影</div></li>
+    </ul>
+  </div>
+
+  <section id="mock">
+    <h2>建议后的总览<span class="h2-sub">首屏见数据，不再被 KPI 挤满</span></h2>
+
+    <div class="kpirow">
+      <div class="kpi">
+        <div class="kpi-label">订单组</div>
+        <div class="kpi-value num">256<span class="kpi-unit">组</span></div>
+        <div class="kpi-delta down">较 11-09 <b>−71.1%</b></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">系统订单量</div>
+        <div class="kpi-value num">1,431<span class="kpi-unit">行</span></div>
+        <div class="kpi-delta down">较 11-09 <b>−70.4%</b></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">系统订单金额</div>
+        <div class="kpi-value is-money num">78.37<span class="kpi-unit">万元</span></div>
+        <div class="kpi-delta down">较 11-09 <b>−70.0%</b></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">已出库</div>
+        <div class="kpi-value num">1,431<span class="kpi-unit">行</span></div>
+        <div class="kpi-delta">出库完成率 100%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">波次</div>
+        <div class="kpi-value num">8<span class="kpi-unit">个</span></div>
+        <div class="kpi-delta down">较 11-09 <b>−81.4%</b></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">未映射线路</div>
+        <div class="kpi-value num">31<span class="kpi-unit">行</span></div>
+        <div class="kpi-delta">占当日 2.2%</div>
+      </div>
+    </div>
+
+    <div class="duo">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">每小时拣货 / 出库行数</div>
+          <div class="card-sub">2026-11-10</div>
+        </div>
+        <svg class="chart" viewBox="0 0 640 262" role="img" aria-label="每小时拣货与出库行数折线图，拣货峰值在 09 时 486 行">
+          <g stroke="#f0f2f5" stroke-width="1">
+            <line x1="44" y1="18.6" x2="616" y2="18.6"></line>
+            <line x1="44" y1="71.5" x2="616" y2="71.5"></line>
+            <line x1="44" y1="124.3" x2="616" y2="124.3"></line>
+            <line x1="44" y1="177.2" x2="616" y2="177.2"></line>
+            <line x1="44" y1="230" x2="616" y2="230"></line>
+          </g>
+          <g fill="#6b6b6b" font-size="12" font-family="Geist, sans-serif" text-anchor="end">
+            <text x="36" y="22.3">480</text>
+            <text x="36" y="75.2">360</text>
+            <text x="36" y="128.0">240</text>
+            <text x="36" y="180.9">120</text>
+            <text x="36" y="233.7">0</text>
+          </g>
+          <polyline fill="none" stroke="#8a8a8a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"
+            points="44.0,230.0 101.2,208.0 158.4,79.4 215.6,179.4 272.8,228.2 330.0,180.7 387.2,57.4 444.4,152.5 501.6,189.0 558.8,178.5 616.0,216.8"></polyline>
+          <polyline fill="none" stroke="#1d5fbf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"
+            points="44.0,199.2 101.2,16.0 158.4,89.5 215.6,61.8 272.8,230.0 330.0,204.5 387.2,212.8 444.4,210.6 501.6,217.2 558.8,228.7 616.0,229.6"></polyline>
+          <circle cx="101.2" cy="16.0" r="3.5" fill="#1d5fbf"></circle>
+          <g fill="#6b6b6b" font-size="12" font-family="Geist, sans-serif" text-anchor="middle">
+            <text x="44" y="250">08</text><!-- taste-skill-ignore: 小时刻度 -->
+            <text x="158.4" y="250">10</text>
+            <text x="272.8" y="250">12</text>
+            <text x="387.2" y="250">14</text>
+            <text x="501.6" y="250">16</text>
+            <text x="616" y="250">18</text>
+          </g>
+        </svg>
+        <div class="legend">
+          <span><i style="background:#1d5fbf"></i>拣货行数</span>
+          <span><i style="background:#8a8a8a"></i>出库行数</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">线路行数排行</div>
+          <div class="card-sub">共 1,431 行</div>
+        </div>
+        <ul class="rank">
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">下午—广东直发线</span><span class="r-val">348</span><span class="r-track"><span class="r-fill mark" style="width:100%;display:block"></span></span></li>
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">下午—广东外库线</span><span class="r-val">298</span><span class="r-track"><span class="r-fill" style="width:86%;display:block"></span></span></li>
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">上午—漳州线</span><span class="r-val">202</span><span class="r-track"><span class="r-fill" style="width:58%;display:block"></span></span></li>
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">上午—南宁线</span><span class="r-val">173</span><span class="r-track"><span class="r-fill" style="width:50%;display:block"></span></span></li>
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">上午—海南线</span><span class="r-val">157</span><span class="r-track"><span class="r-fill" style="width:45%;display:block"></span></span></li>
+          <li><!-- taste-skill-ignore: 线路名原文 --><span class="r-label">上午—粤东、西线</span><span class="r-val">138</span><span class="r-track"><span class="r-fill" style="width:40%;display:block"></span></span></li>
+          <li><span class="r-label">未映射</span><span class="r-val">31</span><span class="r-track"><span class="r-fill" style="width:9%;display:block"></span></span></li>
+          <li><span class="r-label">自提</span><span class="r-val">21</span><span class="r-track"><span class="r-fill" style="width:6%;display:block"></span></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="card-head">
+        <div class="card-title">当日波次</div>
+        <div class="card-sub">8 个波次 · 全部完成</div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>波次</th><th>承运商</th><th class="r">订单组</th><th class="r">行数</th><th class="r">金额(万)</th><th>状态</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">WAVE1111030219</td><td>民生物流</td><td class="r num">94</td><td class="r num strong">635</td><td class="r num">34.42</td><td><span class="pill pill-ok">已完成</span></td></tr>
+            <tr><td class="mono">WAVE1111030308</td><td>民生物流</td><td class="r num">90</td><td class="r num strong">524</td><td class="r num">30.42</td><td><span class="pill pill-ok">已完成</span></td></tr>
+            <tr><td class="mono">WAVE1111030313</td><td>民生物流</td><td class="r num">43</td><td class="r num strong">219</td><td class="r num">9.65</td><td><span class="pill pill-ok">已完成</span></td></tr>
+            <tr><td class="mono">WAVE1111030311</td><td>自提承运商</td><td class="r num">5</td><td class="r num strong">26</td><td class="r num">1.96</td><td><span class="pill pill-ok">已完成</span></td></tr>
+            <tr><td class="mono">WAVE1111030220</td><td>民生顺丰</td><td class="r num">12</td><td class="r num strong">12</td><td class="r num">0.93</td><td><span class="pill pill-ok">已完成</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="audit">
+    <h2>现状实测<span class="h2-sub">1440×900 与 390 宽的真实测量值</span></h2>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th style="width:132px">项目</th><th>现在</th><th style="width:38%">建议</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">面板阴影</td><td>27 个面板全部带双层阴影，面板头底色偏蓝 <span class="mono">#fbfdff</span></td><td>静止面板不投影；面板头与卡片同白，靠字重和留白分层</td></tr>
+            <tr><td class="strong">圆角</td><td>6 种并存：10 / 8 / 7 / 6 / 20 / 50%</td><td>两种：卡片 8px、控件 6px；只有药丸和头像用全圆</td></tr>
+            <tr><td class="strong">字号</td><td>8 种，含 12.5 / 13.5 两个碎值</td><td>6 种：12 / 14 / 16 / 20 / 24 / 30</td></tr>
+            <tr><td class="strong">品牌蓝</td><td>品牌标、导航选中底、链接、按钮悬停边框都用 <span class="mono">#1d5fbf</span></td><td>蓝色只留给数据主元素与一个主操作；外壳一律墨色</td></tr>
+            <tr><td class="strong">导航</td><td>12 项平铺，1440 宽即溢出（内容 938px &gt; 容器 807px）</td><td>按「作业 / 归档 / 管理」分组，默认露 8 项，其余收进「更多」</td></tr>
+            <tr><td class="strong">首屏</td><td>27 个组件里 20 个起始于首屏；18 张 KPI 占到 y=827，第一张图被挤出首屏</td><td>KPI 收成 6 张一行（y≈130），图表上移到 y≈240</td></tr>
+            <tr><td class="strong">手机 390</td><td>文档宽 491，顶栏被撑到 143px，导航横向滚动</td><td>顶栏两行折叠，栅格 2 列，表格容器内横向滚动</td></tr>
+            <tr><td class="strong">数字对齐</td><td>表头与单元格右对齐、<span class="mono">tabular-nums</span> 已生效</td><td>保留，抽成公共类，避免每页各写一遍</td></tr>
+            <tr><td class="strong">对比度</td><td>正文 17.75:1、次要文字 5.98:1、导航 6.10:1，全部达标</td><td>保留；改色时以 4.5:1 为底线</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tokens">
+    <h2>设计基准<span class="h2-sub">先定 token，再改组件</span></h2>
+    <div class="card">
+      <div class="split">
+        <div>
+          <div class="h3">颜色</div>
+          <div class="tok">
+            <div class="sw"><div class="sw-chip" style="background:#f2f4f7;border-bottom:1px solid #e3e7ec"></div><div class="sw-name"><b>底</b><span>f2f4f7</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#ffffff;border-bottom:1px solid #e3e7ec"></div><div class="sw-name"><b>卡片</b><span>ffffff</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#eef0f3"></div><div class="sw-name"><b>浅面</b><span>eef0f3</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#e3e7ec"></div><div class="sw-name"><b>描边</b><span>e3e7ec</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#0a0a0a"></div><div class="sw-name"><b>正文</b><span>0a0a0a</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#6b6b6b"></div><div class="sw-name"><b>次要</b><span>6b6b6b</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#1d5fbf"></div><div class="sw-name"><b>数据</b><span>1d5fbf</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#2e7d32"></div><div class="sw-name"><b>正向</b><span>2e7d32</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#c4242a"></div><div class="sw-name"><b>负向</b><span>c4242a</span></div></div>
+            <div class="sw"><div class="sw-chip" style="background:#92400e"></div><div class="sw-name"><b>提醒</b><span>92400e</span></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="h3">字阶与尺寸</div>
+          <div class="scale">
+            <span>30 / 500</span><span class="s-v" style="font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1.15">78.37 万元</span><span class="s-n">KPI</span>
+            <span>24 / 700</span><span class="s-v" style="font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.2">页面标题</span><span class="s-n">标题</span>
+            <span>20 / 500</span><span class="s-v" style="font-size:20px;font-weight:500">次级数字</span><span class="s-n">摘要</span>
+            <span>16 / 500</span><span class="s-v" style="font-size:16px;font-weight:500">区块标题</span><span class="s-n">区块</span>
+            <span>14 / 400</span><span class="s-v" style="font-size:14px">正文与表格</span><span class="s-n">正文</span>
+            <span>12 / 400</span><span class="s-v" style="font-size:12px;color:#6b6b6b">标签、说明、坐标轴</span><span class="s-n">辅助</span>
+          </div>
+          <div class="h3" style="margin-top:18px">间距与控件</div>
+          <div class="scale">
+            <span>间距</span><span class="s-v">栅格 12px，区块 28px，页边 24px</span><span class="s-n">--</span>
+            <span>行高</span><span class="s-v">表格行 40px，列表行 44px</span><span class="s-n">--</span>
+            <span>控件</span><span class="s-v">按钮与输入框同高 36px</span><span class="s-n">--</span>
+            <span>圆角</span><span class="s-v">卡片 8px，控件 6px</span><span class="s-n">--</span>
+            <span>阴影</span><span class="s-v">静止元素无阴影，只有浮层投影</span><span class="s-n">--</span>
+            <span>字体</span><span class="s-v">Geist + 系统中文字体，数字等宽</span><span class="s-n">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="components">
+    <h2>组件样卡<span class="h2-sub">左边是现在，右边是建议</span></h2>
+    <div class="card">
+
+      <div class="pair">
+        <div class="spec now" data-ui>
+          <div class="spec-label"><b>现在</b> · KPI 卡</div>
+          <div class="s-now-kpi">
+            <div class="lab">系统订单金额</div>
+            <div class="val">78.37<span>万元</span></div>
+          </div>
+        </div>
+        <div class="spec then">
+          <div class="spec-label"><b>建议</b> · KPI 卡</div>
+          <div class="s-then-kpi">
+            <div class="lab">系统订单金额</div>
+            <div class="val">78.37<span>万元</span></div>
+            <div class="dl">较 11-09 −70.0%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair">
+        <div class="spec now" data-ui>
+          <div class="spec-label"><b>现在</b> · 面板头</div>
+          <div class="s-head-now">
+            <div class="hd">当日波次</div>
+            <div class="bd">白卡 + 10px 圆角 + 双层阴影，头部一层淡蓝底</div>
+          </div>
+        </div>
+        <div class="spec then">
+          <div class="spec-label"><b>建议</b> · 面板头</div>
+          <div class="s-head-then">
+            <div class="hd">当日波次</div>
+            <div class="bd">同白底，标题 13px 500，右侧放计数，用留白分层</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair">
+        <div class="spec now" data-ui>
+          <div class="spec-label"><b>现在</b> · 按钮与输入框</div>
+          <div class="ctl-row">
+            <button class="btn-now" type="button">刷新</button>
+            <input class="input-now" value="搜索订单组号" aria-label="现在样式的输入框">
+          </div>
+        </div>
+        <div class="spec then">
+          <div class="spec-label"><b>建议</b> · 按钮与输入框</div>
+          <div class="ctl-row">
+            <button class="btn btn-primary" type="button">刷新</button>
+            <input class="input" value="搜索订单组号" aria-label="建议样式的输入框">
+          </div>
+        </div>
+      </div>
+
+      <div class="pair">
+        <div class="spec now" data-ui>
+          <div class="spec-label"><b>现在</b> · 空态</div>
+          <div class="empty">
+            <div class="e-t">暂无数据</div>
+          </div>
+        </div>
+        <div class="spec then">
+          <div class="spec-label"><b>建议</b> · 空态</div>
+          <div class="empty">
+            <div class="e-t">当天还没有登记波次</div>
+            <div class="e-s">到「数据源」点立即扫描，或等下一次自动扫描</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="layout">
+    <h2>布局蓝图<span class="h2-sub">总览首屏与数据源页</span></h2>
+    <div class="card">
+      <div class="split">
+        <div>
+          <div class="h3">总览 · 现在</div>
+          <div class="wire">
+            <div class="wrow c6">
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+            </div>
+            <div class="wrow c6">
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+            </div>
+            <div class="wrow c6">
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+              <div class="wbox tall">KPI</div><div class="wbox tall">KPI</div><div class="wbox tall">KPI</div>
+            </div>
+            <div class="wrow c21">
+              <div class="wbox tall">作业进度漏斗</div><div class="wbox tall">超期未复核</div>
+            </div>
+          </div>
+          <p class="w-note">18 张 KPI 占满三行，第一张图落在 y=839，1440×900 的屏幕上一点也看不到。</p>
+        </div>
+        <div>
+          <div class="h3">总览 · 建议</div>
+          <div class="wire">
+            <div class="wrow c6">
+              <div class="wbox tall">订单组</div><div class="wbox tall">订单量</div><div class="wbox tall">金额</div>
+              <div class="wbox tall">已出库</div><div class="wbox tall">波次</div><div class="wbox tall">未映射</div>
+            </div>
+            <div class="wrow c21">
+              <div class="wbox tall mark">每小时拣货 / 出库</div><div class="wbox tall">线路排行</div>
+            </div>
+            <div class="wrow">
+              <div class="wbox tall">当日波次表（首屏可见 5 行）</div>
+            </div>
+          </div>
+          <p class="w-note">KPI 收成 6 张一行并加涨跌，图表上移到 y≈240，首屏同时看到数字、趋势和明细。</p>
+        </div>
+      </div>
+
+      <div class="split" style="margin-top:24px">
+        <div>
+          <div class="h3">数据源 · 现在</div>
+          <div class="wire">
+            <div class="wrow c2"><div class="wbox tall">数据源目录</div><div class="wbox tall">未匹配波次</div></div>
+            <div class="wbox tall">文件台账</div>
+            <div class="wbox tall">WMS 自动下载</div>
+            <div class="wbox tall">每日归档</div>
+            <div class="wbox tall">未映射经销商</div>
+          </div>
+          <p class="w-note">7 个面板全部通栏堆叠，页高 2356px，首屏只看到两张卡。</p>
+        </div>
+        <div>
+          <div class="h3">数据源 · 建议</div>
+          <div class="wire">
+            <div class="wrow c2"><div class="wbox tall">数据源目录</div><div class="wbox tall">未匹配波次</div></div>
+            <div class="wrow c21"><div class="wbox tall mark">文件台账</div><div class="wbox tall">WMS 自动下载</div></div>
+            <div class="wrow c2"><div class="wbox tall">每日归档</div><div class="wbox tall">未映射经销商</div></div>
+          </div>
+          <p class="w-note">台账与 WMS 并排，页高降到约 1500px，首屏能看到 4 个区块。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="plan">
+    <h2>落地清单<span class="h2-sub">按影响面排序，先 token 后页面</span></h2>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th style="width:56px">优先级</th><th style="width:96px">范围</th><th>文件</th><th style="width:40%">改动</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pri p0">P0</span></td><td class="strong">设计 token</td><td class="mono">frontend/src/styles/app.css</td><td>圆角收到 2 档，去掉面板阴影，字号收到 6 档，底色改 <span class="mono">#f2f4f7</span></td></tr>
+            <tr><td><span class="pri p0">P0</span></td><td class="strong">面板</td><td class="mono">app.css · components/ui.tsx</td><td>面板头去底色，边框降到 1.13:1，标题改 13px 500</td></tr>
+            <tr><td><span class="pri p0">P0</span></td><td class="strong">导航</td><td class="mono">app/shell.tsx</td><td>12 项按作业 / 归档 / 管理分组，390 宽折叠为两行</td></tr>
+            <tr><td><span class="pri">P1</span></td><td class="strong">KPI</td><td class="mono">features/dashboard.tsx</td><td>6 张一行，数字 30px，涨跌用短色字，零值置灰</td></tr>
+            <tr><td><span class="pri">P1</span></td><td class="strong">图表</td><td class="mono">components/charts.tsx</td><td>单系列用墨色，主数据元素一个蓝，去掉渐变与多余网格</td></tr>
+            <tr><td><span class="pri">P1</span></td><td class="strong">表格</td><td class="mono">各页表格</td><td>右对齐与等宽数字抽成公共类，行高统一 40px</td></tr>
+            <tr><td><span class="pri">P2</span></td><td class="strong">总览重排</td><td class="mono">pages/overview.tsx</td><td>KPI 收 6 张，图表上移，首屏同时给出数字、趋势、明细</td></tr>
+            <tr><td><span class="pri">P2</span></td><td class="strong">数据源重排</td><td class="mono">pages/sources.tsx</td><td>台账与 WMS 并排，页高从 2356px 降到约 1500px</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div><b>work-atlas</b> · 看板 UI 优化方案 · 2026-11-11</div>
+    <div>数据取自本地 8891 实例，业务日 2026-11-10</div>
+  </footer>
+
+</main>
+</body>
+</html>
