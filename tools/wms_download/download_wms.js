@@ -14,12 +14,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const serverPush = require('./server_push');
 
 const ROOT = __dirname;
 const DEFAULT_PUPPETEER = 'C:\\Users\\Administrator\\.dsh\\profiles\\desktop\\node_modules\\puppeteer-core';
 const DEFAULT_CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const DEFAULT_PYTHON = 'C:\\Users\\Administrator\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\python\\python.exe';
-const DEFAULT_SCP = 'C:\\Windows\\System32\\OpenSSH\\scp.exe';
 
 let currentPage = null;
 let currentBrowser = null;
@@ -716,68 +716,26 @@ function validateFile(file, validation) {
   return stat;
 }
 
-function _syncSettings(config) {
-  const raw = config.serverSync || {};
-  const target = String(raw.target || '').trim();
-  const remoteDir = String(raw.remoteDir || '').trim();
-  if (!target || !remoteDir) return null;
-  const scpPath = raw.scpPath || DEFAULT_SCP;
-  if (!fs.existsSync(scpPath)) fail(`找不到 scp：${scpPath}`);
-  return {
-    target,
-    remoteDir: remoteDir.replace(/\\/g, '/').replace(/\/+$/, ''),
-    scpPath,
-    sshPath: raw.sshPath || path.join(path.dirname(scpPath), 'ssh.exe'),
-    timeoutMs: Number(raw.timeoutMs) || 120000,
-    required: raw.required !== false,
-    // 服务器上看板只扫描 share 目录，文件名保持原样（含中文），用 -- 保护以 - 开头的名字
-  };
-}
-
-function pushToServer(localFile, config, tag) {
-  const settings = _syncSettings(config);
-  if (!settings) {
+async function pushToServer(localFile, config, tag) {
+  const settings = serverPush.settingsOf(config);
+  if (!serverPush.configured(settings)) {
     log('未配置 serverSync，跳过服务器同步');
     return { synced: false, skipped: true };
   }
   const name = path.basename(localFile);
-  const remotePath = `${settings.remoteDir}/${name}`;
-  const opts = ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=20'];
-  log(`同步到服务器：${settings.target}:${remotePath}`);
-  const put = spawnSync(
-    settings.scpPath,
-    [...opts, localFile, `${settings.target}:${remotePath}`],
-    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs }
-  );
-  if (put.status !== 0) {
-    const detail = (put.stderr || put.stdout || put.error?.message || '').trim();
-    const message = `同步到服务器失败（${tag || 'deliver'}）：${detail || `scp 退出码 ${put.status}`}`;
+  try {
+    const result = await serverPush.pushFile(localFile, config, log);
+    const extra = result.queued
+      ? '（已接收，等待后台扫描）'
+      : `，入库 ${result.rows} 行，状态 ${result.status || '未知'}`;
+    log(`已同步到服务器：${name}（${result.size} 字节）${extra}`);
+    return result;
+  } catch (error) {
+    const message = `同步到服务器失败（${tag || 'deliver'}）：${error.message}`;
     if (settings.required) fail(message);
     log(`警告：${message}`);
     return { synced: false, error: message };
   }
-  const size = fs.statSync(localFile).size;
-  const check = spawnSync(
-    settings.sshPath,
-    [...opts, settings.target, `stat -c %s -- ${JSON.stringify(remotePath)}`],
-    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs }
-  );
-  const remoteSize = Number(String(check.stdout || '').trim());
-  if (check.status !== 0 || !Number.isFinite(remoteSize)) {
-    const detail = (check.stderr || check.stdout || '').trim();
-    const message = `服务器文件校验失败：${detail || '无法读取远端文件大小'}`;
-    if (settings.required) fail(message);
-    log(`警告：${message}`);
-    return { synced: false, error: message };
-  }
-  if (remoteSize !== size) {
-    const message = `服务器文件大小不一致：本地 ${size} 字节，远端 ${remoteSize} 字节`;
-    if (settings.required) fail(message);
-    log(`警告：${message}`);
-    return { synced: false, error: message };
-  }
-  log(`已同步到服务器：${remotePath}（${size} 字节）`);
-  return { synced: true, remote: remotePath, size };
 }
 
 function validateHeaders(file, validation, pythonPath) {
@@ -792,7 +750,8 @@ function validateHeaders(file, validation, pythonPath) {
     log('未找到 validate_download.py，跳过表头校验');
     return;
   }
-  const result = spawnSync(pythonPath, [script, file, JSON.stringify(required)], { encoding: 'utf8', windowsHide: true });
+  const env = Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' });
+  const result = spawnSync(pythonPath, [script, file, JSON.stringify(required)], { encoding: 'utf8', windowsHide: true, env });
   if (result.status !== 0) {
     fail(`表头/内容校验失败：${(result.stderr || result.stdout || '').trim() || '未知错误'}`);
   }
@@ -920,7 +879,7 @@ async function downloadFlow(config, args, secrets) {
       fs.copyFileSync(downloaded, path.join(archiveDir, `${date}-${targetName}`));
     }
     // 交付目录若是网络盘/本机目录，服务器扫不到，再推一份到服务器数据源目录
-    const sync = pushToServer(target, config, 'deliver');
+    const sync = await pushToServer(target, config, 'deliver');
     return { date, file: target, size: stat.size, source: downloaded, sync };
   } catch (error) {
     await captureFailure(currentPage, error.message);
@@ -959,7 +918,7 @@ async function main() {
     if (!fs.existsSync(local)) fail(`找不到要同步的文件：${local}`);
     const stat = fs.statSync(local);
     validateFile(local, config.validation || {});
-    const sync = pushToServer(local, config, 'manual');
+    const sync = await pushToServer(local, config, 'manual');
     log(`完成：${JSON.stringify({ file: local, size: stat.size, sync })}`);
     return sync.synced || sync.skipped ? 0 : 1;
   }

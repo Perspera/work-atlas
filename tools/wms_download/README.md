@@ -10,7 +10,7 @@
 - Node：`run_wms_download.bat` 里默认 `F:\APP\dev_env\Node.js\node.exe`，找不到时回退 `C:\Program Files\nodejs\node.exe`、再回退 PATH 里的 `node`。
 - Puppeteer Core：`C:\Users\Administrator\.dsh\profiles\desktop\node_modules\puppeteer-core`（也可写 `puppeteerPath`）。
 - Python/openpyxl：用于下载文件表头校验（默认使用 DSH 运行时 Python，见 `pythonPath`）。
-- 免密 SSH/SCP：同步到服务器需要本机能 `ssh root@8.163.57.96` 免密登录（`scp.exe`/`ssh.exe` 在 `C:\Windows\System32\OpenSSH\`）。
+- 送文件到服务器：默认走 HTTP 上传（`serverSync.transport=http`），只需本机能访问看板 `url`，并在 `secrets.local.json` 填看板生成的上传令牌 `dashboardToken`；若改用 `transport=scp` 才需要本机能 `ssh root@8.163.57.96` 免密登录（`scp.exe`/`ssh.exe` 在 `C:\Windows\System32\OpenSSH\`）。
 
 以上路径均可在 `wms.config.json` / `run_wms_download.bat` 中改。
 
@@ -89,14 +89,16 @@ run_wms_download.bat --yesterday
 - `validation.requiredHeaders`：校验 Excel/CSV 必需表头；不通过不会交付。
 - 同日期文件已存在：`overwriteDeliver: true` 覆盖，`false` 自动加日期后缀。
 
-## 5.1 同步到服务器数据源目录（serverSync）
+## 5.1 把文件送到服务器（serverSync）
 
 线上看板（`WORK_ATLAS_ENV=prod`）只扫 `/opt/work-atlas/share`。WMS 的 SSO 登录页在内网
 （`10.8.255.70:18080`），阿里云服务器访问不到，所以下载必须在装了 aTrust 且已登录的 Windows 机器上执行，
-下载完再把文件推给服务器。
+下载完再把文件送到服务器。**两种通道**，用 `serverSync.transport` 选：
 
 ```json
 "serverSync": {
+  "transport": "http",
+  "url": "http://8.163.57.96:18081",
   "target": "root@8.163.57.96",
   "remoteDir": "/opt/work-atlas/share",
   "scpPath": "C:\\Windows\\System32\\OpenSSH\\scp.exe",
@@ -108,7 +110,23 @@ run_wms_download.bat --yesterday
 }
 ```
 
-- `download_wms.js` 交付成功后自动调 `pushToServer()`（scp 上传 + `ssh stat -c %s` 校验字节数）。
+- **`transport: "http"`（默认，推荐）**：把文件 POST 到看板的 `POST /api/ingest/upload`，服务器落到
+  `source_dirs` 第一个目录（prod 即 `/opt/work-atlas/share`）后**立即扫描入库**，响应里带回导入行数。
+  不需要免密 SSH，只需要能访问 `url`；请求头 `X-WMS-Token` 是看板「WMS 自动下载」面板生成的上传令牌。
+- **`transport: "scp"`**：旧通道，`scp` 上传到 `target:remoteDir` + `ssh stat -c %s` 校验字节数，
+  靠看板每 60 秒自动扫描导入；需要本机能免密 `ssh root@8.163.57.96`。
+- 上传令牌填在 `secrets.local.json` 的 `dashboardToken`（该文件被 `.gitignore` 忽略，不要提交）：
+
+```json
+{
+  "username": "14127",
+  "password": "WMS 门户密码",
+  "dashboardToken": "看板面板生成的令牌"
+}
+```
+
+- 令牌在数据库里只存 sha256；面板点「重置上传令牌」后旧令牌立即失效，需要同步更新下载机的 `secrets.local.json`。
+- `download_wms.js` 交付成功后自动调 `pushToServer()`。
 - `run_wms_download.bat` 在下载之后**无条件**再跑一次 `sync_to_server.js`：即使下载失败（例如 aTrust 掉线），
   也会把交付目录里新出现的文件补传上去——文件可能是人工或别的机器放进来的。
 - `sync_to_server.js` 单独用法：
@@ -121,8 +139,8 @@ node download_wms.js --config wms.config.json --sync-file "Z:\单据登记\测�
 ```
 
 - 去重状态在 `logs/sync-state.json`，键是「文件名|字节数|mtime」，所以文件内容更新（大小或时间变）会重新上传。
-- 服务器看板每 60 秒自动扫描导入，不需要人工触发。
-- 前置条件：本机能免密 `ssh root@8.163.57.96`；同步失败的详细日志在 `logs/sync.log`。
+- 上传/同步失败的详细日志在 `logs/sync.log`；`required: true` 时同步失败会让整轮任务返回非 0。
+- 服务器侧落盘用「先写 `.part-*` 再 `os.replace`」，扫描器不会读到半截文件；内容与已有文件完全一致时直接跳过，不重扫。
 
 ## 6. 定时执行（频次/间隔可自定义）
 

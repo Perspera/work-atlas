@@ -306,6 +306,10 @@ class Handler(CoreMixin, DataMixin, BatteryMixin, LaborMixin, DashboardMixin, Al
         if path == "/api/events":
             self.handle_sse(query)
             return
+        # 下载机上传：机器令牌鉴权，不走 Cookie 会话（必须在 require_login 之前）
+        if path == "/api/ingest/upload" and method == "POST":
+            self.handle_ingest_upload_public()
+            return
 
         self.require_login()
 

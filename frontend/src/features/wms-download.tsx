@@ -17,9 +17,18 @@ interface WmsSchedule {
 
 interface WmsServerSync {
   enabled?: boolean;
+  transport?: string;
+  url?: string;
   target?: string;
   remoteDir?: string;
   required?: boolean;
+}
+
+interface WmsIngest {
+  configured?: boolean;
+  created_at?: string;
+  last_upload_at?: string;
+  last_upload_name?: string;
 }
 
 interface WmsConfig {
@@ -51,6 +60,7 @@ interface WmsState {
   config: WmsConfig;
   task: WmsTask;
   host?: { windows?: boolean };
+  ingest?: WmsIngest;
   lastRun: WmsLastRun;
   lastSummary?: string | null;
   latest?: { file?: { name?: string; rows?: number; imported_at?: string } } | null;
@@ -153,6 +163,8 @@ export default function WmsPanel() {
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState("");
   const [logsOpen, setLogsOpen] = useState(false);
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [token, setToken] = useState("");
 
   const logs = useQuery({
     queryKey: ["wms-logs"],
@@ -259,6 +271,23 @@ export default function WmsPanel() {
     }
   };
 
+  const rotateToken = async () => {
+    if (!window.confirm("生成新令牌后，旧的下载机会立刻失效，需要把新令牌填到它的 secrets.local.json。继续？")) return;
+    setBusy(true);
+    try {
+      const result = await api<{ token: string; created_at?: string }>("/api/wms-download/ingest-token", {
+        method: "POST",
+      });
+      setToken(result.token);
+      setTokenOpen(true);
+      void state.refetch();
+    } catch (error) {
+      toast((error as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const data = state.data;
   const cfg = data?.config || {};
   const task = data?.task || {};
@@ -281,21 +310,37 @@ export default function WmsPanel() {
           <>
             {!localHost && (
               <div className="small muted" style={{ marginBottom: 10 }}>
-                当前是线上服务器（Linux）：WMS 下载与服务器同步只能在装了 aTrust 的 Windows 下载机上执行，
-                这里只能查看状态与日志。数据源目录 <code>/opt/work-atlas/share</code> 由下载机 scp 推送文件后自动导入。
+                当前是线上服务器（Linux）：WMS 下载只能在装了 aTrust 的 Windows 下载机上执行，这里只能查看状态、
+                生成上传令牌与查看日志。下载机把文件上传到 <code>/api/ingest/upload</code> 后，
+                服务器落到 <code>/opt/work-atlas/share</code> 并立即入库。
               </div>
             )}
             <div className="small muted" style={{ marginBottom: 10 }}>
               登录方式：{cfg.loginMode || "aTrust SSO / 复用已登录会话"}
               {" · "}
               {cfg.serverSync?.enabled
-                ? `服务器同步：${cfg.serverSync.target}:${cfg.serverSync.remoteDir}`
+                ? cfg.serverSync.transport === "scp"
+                  ? `服务器同步：scp ${cfg.serverSync.target}:${cfg.serverSync.remoteDir}`
+                  : `服务器同步：上传入库 ${cfg.serverSync.url || ""}/api/ingest/upload`
                 : "服务器同步：未配置（仅交付到本机/共享盘）"}
               {" · "}
               {latestFile
                 ? `最近导入：${latestFile.name || ""} · ${num(latestFile.rows)} 行 · ${latestFile.imported_at || ""}`
                 : "还没有导入过出库文件"}
               {lastText ? ` · 最近日志：${lastText.slice(0, 120)}` : ""}
+            </div>
+            <div className="small muted" style={{ marginBottom: 10 }}>
+              上传令牌：
+              {data.ingest?.configured ? (
+                <>
+                  已配置（生成于 {data.ingest.created_at || "未知"}）
+                  {data.ingest.last_upload_at ? ` · 最近上传 ${data.ingest.last_upload_name || ""} ${data.ingest.last_upload_at}` : ""}
+                </>
+              ) : (
+                "未配置，下载机还无法上传"
+              )}
+              {" · "}
+              下载机把文件 POST 到 <code>/api/ingest/upload</code>，服务器落盘后立即扫描入库，无需等 60 秒。
             </div>
             <div className="grid cols-2">
               <div className="field">
@@ -385,11 +430,29 @@ export default function WmsPanel() {
                 移除任务
               </button>
               <button className="btn btn-ghost" onClick={() => setLogsOpen(true)}>查看日志</button>
+              <button className="btn btn-ghost" disabled={!canScan || busy}
+                onClick={() => void rotateToken()}>
+                {data.ingest?.configured ? "重置上传令牌" : "生成上传令牌"}
+              </button>
               <span className="small muted">{hint}</span>
             </div>
           </>
         )}
       </Panel>
+
+      {tokenOpen && (
+        <Modal
+          title="上传令牌"
+          onClose={() => setTokenOpen(false)}
+          footer={<button className="btn btn-sm" onClick={() => setTokenOpen(false)}>已复制，关闭</button>}
+        >
+          <div className="small muted" style={{ marginBottom: 6 }}>
+            令牌只显示这一次。把它填到下载机 <code>tools/wms_download/secrets.local.json</code> 的
+            <code> dashboardToken</code> 字段，下载机就能用 <code>POST /api/ingest/upload</code> 直接上传入库。
+          </div>
+          <pre className="wms-log" style={{ userSelect: "all" }}>{token}</pre>
+        </Modal>
+      )}
 
       {logsOpen && (
         <Modal

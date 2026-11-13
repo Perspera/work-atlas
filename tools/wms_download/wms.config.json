@@ -13,6 +13,8 @@
   "downloadDir": "downloads/tmp",
   "deliverDir": "Z:\\单据登记\\测试",
   "serverSync": {
+    "transport": "http",
+    "url": "http://8.163.57.96:18081",
     "target": "root@8.163.57.96",
     "remoteDir": "/opt/work-atlas/share",
     "scpPath": "C:\\Windows\\System32\\OpenSSH\\scp.exe",

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* 把交付目录里的最新 WMS 文件同步到看板服务器数据源目录。
+/* 把交付目录里的最新 WMS 文件推送到看板服务器。
  *
- * 只做文件搬运，不启动浏览器：即使下载动作发生在别的电脑（或本机浏览器
- * 会话失效），只要文件落到了交付目录，这个脚本就能保证服务器目录里也有。
+ * 默认走 HTTP 上传即入库（server_push.js）：服务器落盘到数据源目录后立刻扫描，
+ * 响应里带回行数与状态；也支持 transport=scp 回退到旧的 scp 拷贝方式。
  *
  * 用法：
  *   node sync_to_server.js --config wms.config.json
@@ -15,10 +15,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const serverPush = require('./server_push');
 
 const ROOT = __dirname;
-const DEFAULT_SCP = 'C:\\Windows\\System32\\OpenSSH\\scp.exe';
 
 function nowText() {
   const d = new Date();
@@ -71,28 +70,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function settingsOf(config) {
-  const raw = config.serverSync || {};
-  const target = String(raw.target || '').trim();
-  const remoteDir = String(raw.remoteDir || '').trim();
-  if (!target || !remoteDir) {
-    log('未配置 serverSync.target / remoteDir，跳过同步');
-    return null;
-  }
-  const scpPath = raw.scpPath || DEFAULT_SCP;
-  const sshPath = raw.sshPath || path.join(path.dirname(scpPath), 'ssh.exe');
-  if (!fs.existsSync(scpPath)) fail(`找不到 scp：${scpPath}`);
-  return {
-    target,
-    remoteDir: remoteDir.replace(/\\/g, '/').replace(/\/+$/, ''),
-    scpPath,
-    sshPath,
-    timeoutMs: Number(raw.timeoutMs) || 120000,
-    pattern: new RegExp(String(raw.namePattern || '出库流程节点时间跟踪'), 'i'),
-    maxFiles: Number(raw.maxFiles) || 5,
-  };
-}
-
 function listCandidates(deliverDir, settings) {
   let names;
   try {
@@ -119,35 +96,12 @@ function stateKey(file) {
   return `${file.name}|${file.size}|${file.mtime}`;
 }
 
-function pushFile(file, settings, dryRun) {
-  const remotePath = `${settings.remoteDir}/${file.name}`;
-  const opts = ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=20'];
-  if (dryRun) {
-    log(`[dry-run] 将上传 ${file.name}（${file.size} 字节）→ ${settings.target}:${remotePath}`);
-    return true;
-  }
-  log(`上传 ${file.name}（${file.size} 字节）→ ${settings.target}:${remotePath}`);
-  const put = spawnSync(settings.scpPath, [...opts, file.full, `${settings.target}:${remotePath}`],
-    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs });
-  if (put.status !== 0) {
-    const detail = (put.stderr || put.stdout || put.error?.message || '').trim();
-    fail(`上传失败：${detail || `scp 退出码 ${put.status}`}`);
-  }
-  const check = spawnSync(settings.sshPath, [...opts, settings.target, `stat -c %s -- ${JSON.stringify(remotePath)}`],
-    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs });
-  const remoteSize = Number(String(check.stdout || '').trim());
-  if (check.status !== 0 || !Number.isFinite(remoteSize)) {
-    const detail = (check.stderr || check.stdout || '').trim();
-    fail(`服务器校验失败：${detail || '无法读取远端文件大小'}`);
-  }
-  if (remoteSize !== file.size) {
-    fail(`大小不一致：本地 ${file.size}，远端 ${remoteSize}`);
-  }
-  log(`校验通过：远端 ${remoteSize} 字节`);
-  return true;
+function saveState(statePath, state) {
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     console.log('用法：node sync_to_server.js --config wms.config.json [--dry-run] [--all]');
@@ -156,8 +110,12 @@ function main() {
   const configPath = resolvePath(args.config, ROOT);
   const config = loadJson(configPath);
   logDir = resolvePath(config.logDir || 'logs', ROOT);
-  const settings = settingsOf(config);
-  if (!settings) return 0;
+  const settings = serverPush.settingsOf(config);
+  if (!serverPush.configured(settings)) {
+    log('未配置 serverSync.url（或 target/remoteDir），跳过同步');
+    return 0;
+  }
+  log(`目标：${serverPush.describe(settings)}`);
 
   const deliverDir = resolvePath(config.deliverDir || '', ROOT);
   if (!deliverDir || !fs.existsSync(deliverDir)) {
@@ -181,13 +139,19 @@ function main() {
       skipped += 1;
       continue;
     }
+    if (args.dryRun) {
+      log(`[dry-run] 将上传 ${file.name}（${file.size} 字节）→ ${serverPush.describe(settings)}`);
+      pushed += 1;
+      continue;
+    }
     try {
-      pushFile(file, settings, args.dryRun);
-      if (!args.dryRun) {
-        state[key] = 'ok';
-        fs.mkdirSync(logDir, { recursive: true });
-        fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
-      }
+      const result = await serverPush.pushFile(file.full, config, log);
+      const extra = result.queued
+        ? '（已接收，等待后台扫描）'
+        : `，入库 ${result.rows} 行，状态 ${result.status || '未知'}`;
+      log(`完成：${result.name}（${result.size} 字节）${extra}`);
+      state[key] = 'ok';
+      saveState(statePath, state);
       pushed += 1;
     } catch (error) {
       errors.push(`${file.name}：${error.message}`);
@@ -202,9 +166,9 @@ function main() {
   return 0;
 }
 
-try {
-  process.exit(main());
-} catch (error) {
-  console.error(`[${nowText()}] 失败：${error && error.message ? error.message : error}`);
-  process.exit(error.exitCode || 1);
-}
+main()
+  .then((code) => process.exit(code))
+  .catch((error) => {
+    console.error(`[${nowText()}] 失败：${error && error.message ? error.message : error}`);
+    process.exit(error.exitCode || 1);
+  });

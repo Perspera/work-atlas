@@ -99,6 +99,8 @@ ROUTES = [
             ("POST", r"^/api/wms-download/schedule$", "api_wms_download_schedule"),
             ("POST", r"^/api/wms-download/sync$", "api_wms_download_sync"),
             ("GET", r"^/api/wms-download/log$", "api_wms_download_log"),
+            ("GET", r"^/api/wms-download/ingest-token$", "api_wms_ingest_token_get"),
+            ("POST", r"^/api/wms-download/ingest-token$", "api_wms_ingest_token_rotate"),
             ("GET", r"^/api/source-archives$", "api_source_archives"),
             ("GET", r"^/api/export/source-archive.csv$", "api_export_source_archive"),
             ("GET", r"^/api/source-archive/(\d+)/preview$", "api_source_archive_preview"),

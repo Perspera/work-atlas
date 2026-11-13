@@ -140,7 +140,7 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 
 - 编辑 WMS 地址、查询日期（今天/昨天/固定/相对）、执行方式（每天时间点或 08:00–21:00 每 10 分钟）、下载目录；
 - 「保存配置」「立即下载」「补传服务器」「启用/更新定时任务」「暂停」「移除任务」「查看日志」；
-- 面板显示定时任务状态、下次运行、最近一次成功/失败、服务器同步目标和最近导入文件；
+- 面板显示定时任务状态、下次运行、最近一次成功/失败、服务器同步目标、上传令牌状态和最近导入文件；
 - 配置写入 `tools/wms_download/wms.config.json`，保留页面选择器/登录/导出设置；不保存 WMS 密码（当前使用 aTrust SSO / 已登录会话）；
 - 立即下载会启动后台 Node 进程，完成后自动触发扫描导入；定时任务仍由 Windows 任务计划执行。
 
@@ -155,15 +155,15 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 - 账号密码放本机 `secrets.local.json`，不写入代码/日志；
 - 首次需要填 WMS 地址/页面选择器，详见 [tools/wms_download/README.md](tools/wms_download/README.md)。
 
-#### 下载后同步到服务器数据源目录
+#### 下载后直接上传入库（推荐）
 
 WMS 的 SSO 登录页在**内网**（`10.8.255.70:18080`），阿里云服务器连不上，所以「打开 WMS 下载」只能在装了 aTrust 并已登录的 Windows 机器上跑；
-服务器侧只负责「接收文件 + 扫描导入」。为此 `wms.config.json` 增加了 `serverSync`：
+服务器侧只负责「接收文件 + 立即入库」。为此新增了上传入库接口 `POST /api/ingest/upload`（机器令牌鉴权，不走 Cookie 会话）：
 
 ```json
 "serverSync": {
-  "target": "root@8.163.57.96",
-  "remoteDir": "/opt/work-atlas/share",
+  "transport": "http",
+  "url": "http://8.163.57.96:18081",
   "timeoutMs": 120000,
   "required": true,
   "namePattern": "出库流程节点时间跟踪",
@@ -171,11 +171,14 @@ WMS 的 SSO 登录页在**内网**（`10.8.255.70:18080`），阿里云服务器
 }
 ```
 
+- 下载机把文件 POST 给看板（头 `X-WMS-Token` + `X-File-Name`，body 是文件原始字节），服务器落到 `/opt/work-atlas/share` 后**立即扫描入库**，响应里直接带回导入行数与 `source_files` 状态，不用等 60 秒扫描；
+- 落盘用「先写 `.part-*` 再 `os.replace`」，扫描器永远看不到半截文件；内容与已有文件完全一致时不重写、不重扫，直接返回 `skipped`；
 - `run_wms_download.bat` 先下载，**再无条件**跑 `sync_to_server.js`（下载失败也同步，文件可能是人工放进交付目录的）；
-- 同步用 `scp` 上传后 `ssh stat -c %s` 校验字节数，不一致算失败；已同步过的文件按「名称+大小+mtime」记在 `logs/sync-state.json` 里跳过；
-- 服务器看板每 60 秒扫描 `/opt/work-atlas/share`，文件到了自动导入，不需要人工点扫描；
+- 已同步过的文件按「名称+大小+mtime」记在 `logs/sync-state.json` 里跳过；
 - 面板上的「补传服务器」= `POST /api/wms-download/sync`，等价于手工跑一次 `sync_to_server.js`；
-- 免密登录前提：本机 `%USERPROFILE%\.ssh` 里有能直连服务器的密钥（`ssh root@8.163.57.96` 不需密码）。
+- **上传令牌**：数据源页「WMS 自动下载」面板点「生成上传令牌」，把返回的令牌填到下载机 `tools/wms_download/secrets.local.json` 的 `dashboardToken`（该文件已被 `.gitignore` 忽略）；令牌只在数据库存 sha256，重置后旧下载机立即失效；
+- 若坚持用 SSH 通道，把 `transport` 改成 `"scp"` 并配置 `target`/`remoteDir` 即可，行为与旧版一致（`scp` 上传 + `ssh stat -c %s` 校验字节数）；
+- 免密登录/令牌都不是必需的：`transport=http` 时只需要本机能访问 `http://8.163.57.96:18081`（nginx 白名单已含办公网出口 IP）。
 
 ### 自动归档与归档查询（数据源页）
 

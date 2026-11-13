@@ -11,6 +11,7 @@ import traceback
 from datetime import datetime, timedelta
 
 from backend import paths
+from backend.wms import ingest_token
 
 BASE_DIR = paths.BASE_DIR
 AUTO_DIR = paths.WMS_TOOLS_DIR
@@ -161,14 +162,22 @@ def save_config(payload):
 
 
 def _public_sync(config):
-    """服务器同步配置对外只读展示，不回传 scp/ssh 绝对路径。"""
+    """服务器同步配置对外只读展示，不回传 scp/ssh 绝对路径与令牌。"""
     sync = config.get("serverSync") or {}
     if not isinstance(sync, dict):
-        return {"enabled": False}
+        return {"enabled": False, "transport": "http", "url": "", "target": "", "remoteDir": ""}
+    transport = str(sync.get("transport") or "http").strip().lower()
     target = str(sync.get("target") or "").strip()
     remote = str(sync.get("remoteDir") or "").strip()
+    url = str(sync.get("url") or "").strip()
+    if transport == "scp":
+        enabled = bool(target and remote)
+    else:
+        enabled = bool(url)
     return {
-        "enabled": bool(target and remote),
+        "enabled": enabled,
+        "transport": transport,
+        "url": url,
         "target": target,
         "remoteDir": remote,
         "required": sync.get("required") is not False,
@@ -495,9 +504,9 @@ def sync_now():
     if os.name != "nt":
         raise WmsError("服务器同步只能在本机（Windows 下载机）执行", 400)
     config = load_config()
-    sync = config.get("serverSync") or {}
-    if not (isinstance(sync, dict) and sync.get("target") and sync.get("remoteDir")):
-        raise WmsError("未配置服务器同步（wms.config.json 的 serverSync）", 400)
+    public = _public_sync(config)
+    if not public.get("enabled"):
+        raise WmsError("未配置服务器同步（wms.config.json 的 serverSync.url 或 target/remoteDir）", 400)
     node = _node_path(config)
     script = os.path.join(AUTO_DIR, "sync_to_server.js")
     if not os.path.isfile(script):
@@ -526,6 +535,7 @@ def state(conn, tail=200):
         "config": public_config(config),
         "task": task,
         "host": {"windows": os.name == "nt"},
+        "ingest": ingest_token.status(conn),
         "lastRun": status,
         "lastSummary": summary,
         "latest": latest_delivery(conn),
