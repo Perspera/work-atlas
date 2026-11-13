@@ -357,7 +357,7 @@ export default function BoardPage() {
           </Grid>
         )
       ) : (
-        <WidgetGrid layout={{ widgets }} date={date} />
+        <WidgetGrid layout={{ widgets }} date={date} kpiBand={false} />
       )}
 
       {paletteOpen && (

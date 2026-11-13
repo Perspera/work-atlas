@@ -7,7 +7,7 @@ import { clock } from "../lib/format";
 import { startEventStream, useMeta } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
 import { Badge, Loading, Modal } from "../components/ui";
-import { PAGES } from "./pages";
+import { navGroups, PAGES } from "./pages";
 
 interface AlertRow {
   id: number;
@@ -174,80 +174,99 @@ export function Shell() {
 
   const badge = unread.data?.unread || 0;
 
+  const groups = navGroups(PAGES.filter((page) => hasPerm(me, page.perm)));
+
   return (
     <>
-      <div className="topbar">
-        <div className="brand">
-          <span className="brand-mark">量</span>
-          <span className="brand-text">{meta.data?.site_title || me?.site_title || "单量与作业进度看板"}</span>
-        </div>
-        <nav className="nav">
-          {PAGES.filter((page) => hasPerm(me, page.perm)).map((page) => (
-            <NavLink key={page.key} to={`/${page.key}`} className={({ isActive }) => (isActive ? "active" : "")}>
-              {page.title}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="topbar-right">
-          <select
-            className="select"
-            style={{ height: 30, minWidth: 150 }}
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-          >
-            {dates.length === 0 && <option value={date}>{date}</option>}
-            {dates.map((item) => (
-              <option key={item.biz_date} value={item.biz_date}>
-                {dateLabel(item)}
-              </option>
+      <div className="app">
+        <aside className="side">
+          <div className="brand">
+            <span className="brand-mark">量</span>
+            <span className="brand-text">{meta.data?.site_title || me?.site_title || "单量与作业进度看板"}</span>
+          </div>
+          <nav className="nav">
+            {groups.map((group) => (
+              <div key={group.name} className="nav-group">
+                <div className="grp">{group.name}</div>
+                {group.pages.map((page) => (
+                  <NavLink key={page.key} to={`/${page.key}`} className={({ isActive }) => (isActive ? "active" : "")}>
+                    {page.title}
+                  </NavLink>
+                ))}
+              </div>
             ))}
-          </select>
-          {date && today && date !== today && (
-            <button className="btn btn-sm" style={{ height: 26 }} onClick={() => setDate(today)}>
-              回到今天
-            </button>
-          )}
-          {hasPerm(me, "page.screen") && (
-            <button className="btn btn-sm" style={{ height: 26 }} onClick={() => navigate("/screen")}>
-              大屏
-            </button>
-          )}
-          {hasPerm(me, "page.alerts") && (
-            <button
-              className="btn btn-sm"
-              style={{ height: 26, position: "relative" }}
-              title="预警消息"
-              aria-label="预警消息"
-              onClick={(event) => {
-                event.stopPropagation();
-                setBellOpen((open) => !open);
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M8 2a3.5 3.5 0 0 0-3.5 3.5c0 3-1.5 4-1.5 4h10s-1.5-1-1.5-4A3.5 3.5 0 0 0 8 2Z" />
-                <path d="M6.6 12.5a1.5 1.5 0 0 0 2.8 0" />
-              </svg>
-              {badge > 0 && <span className="bell-dot">{badge > 99 ? "99+" : badge}</span>}
-            </button>
-          )}
-          <span className="meta">
+          </nav>
+          <div className="side-foot">
             <span className={`dot${online ? "" : " off"}`} /> {lastUpdate || "--:--:--"}
-          </span>
-          <div
-            className="user-chip"
-            onClick={(event) => {
-              event.stopPropagation();
-              setMenuOpen((open) => !open);
-            }}
-          >
-            {me?.user?.display_name || me?.user?.username || ""}
+            <br />
+            {date || ""}
+          </div>
+        </aside>
+
+        <div className="main">
+          <div className="mainbar">
+            <div className="topbar-right">
+              <select
+                className="select"
+                style={{ height: 30, minWidth: 150 }}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              >
+                {dates.length === 0 && <option value={date}>{date}</option>}
+                {dates.map((item) => (
+                  <option key={item.biz_date} value={item.biz_date}>
+                    {dateLabel(item)}
+                  </option>
+                ))}
+              </select>
+              {date && today && date !== today && (
+                <button className="btn btn-sm" style={{ height: 26 }} onClick={() => setDate(today)}>
+                  回到今天
+                </button>
+              )}
+              {hasPerm(me, "page.screen") && (
+                <button className="btn btn-sm" style={{ height: 26 }} onClick={() => navigate("/screen")}>
+                  大屏
+                </button>
+              )}
+              {hasPerm(me, "page.alerts") && (
+                <button
+                  className="btn btn-sm"
+                  style={{ height: 26, position: "relative" }}
+                  title="预警消息"
+                  aria-label="预警消息"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setBellOpen((open) => !open);
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                    strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M8 2a3.5 3.5 0 0 0-3.5 3.5c0 3-1.5 4-1.5 4h10s-1.5-1-1.5-4A3.5 3.5 0 0 0 8 2Z" />
+                    <path d="M6.6 12.5a1.5 1.5 0 0 0 2.8 0" />
+                  </svg>
+                  {badge > 0 && <span className="bell-dot">{badge > 99 ? "99+" : badge}</span>}
+                </button>
+              )}
+              <span className="meta">
+                <span className={`dot${online ? "" : " off"}`} /> {lastUpdate || "--:--:--"}
+              </span>
+              <div
+                className="user-chip"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpen((open) => !open);
+                }}
+              >
+                {me?.user?.display_name || me?.user?.username || ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="page">
+            <Outlet />
           </div>
         </div>
-      </div>
-
-      <div className="page">
-        <Outlet />
       </div>
 
       {bellOpen && <BellMenu onClose={() => setBellOpen(false)} onViewAll={() => navigate("/alerts")} />}

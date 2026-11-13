@@ -200,7 +200,7 @@ export default function ScreenPage() {
         {slides.length === 0 && <Empty text="大屏还没有配置看板（在「看板总台」把看板加入大屏）" />}
         {slides[index] && (
           <div className="screen-page-host">
-            <WidgetGrid layout={{ widgets: slides[index].widgets }} date={data.date} rowHeight={SCREEN_ROW} />
+            <WidgetGrid layout={{ widgets: slides[index].widgets }} date={data.date} rowHeight={SCREEN_ROW} kpiBand={false} />
           </div>
         )}
       </div>

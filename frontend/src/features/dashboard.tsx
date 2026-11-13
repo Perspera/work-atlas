@@ -260,30 +260,33 @@ export function WidgetBody({
   data,
   palette,
   showValues,
+  title,
 }: {
   type: LayoutWidget["type"];
   data: WidgetData;
   palette?: string[] | null;
   showValues?: boolean;
+  title?: string;
 }) {
   if (data.kind === "text") return <div className="small">{data.text}</div>;
   if (data.kind === "value") {
     const kpi = formatKpi(data.metric, data.value, data.unit);
     const trend = typeof data.delta === "number" && Number.isFinite(data.delta) ? data.delta : null;
     return (
-      <div>
-        <div className="kpi-label">{data.label}</div>
+      <>
+        <div className="kpi-label">{title || data.label}</div>
         <div className="kpi-value">
           {kpi.text}
           {kpi.unit && <span className="kpi-unit">{kpi.unit}</span>}
         </div>
-        {trend !== null && (
-          <div className="kpi-sub">
-            环比 {pct(trend)}
-            {data.prev_date ? `（${data.prev_date}）` : ""}
-          </div>
-        )}
-      </div>
+        <div className="kpi-sub">
+          {trend !== null && data.prev_date && (
+            <span className={trend >= 0 ? "kpi-up" : "kpi-down"}>
+              较 {String(data.prev_date).slice(5)} {trend >= 0 ? "▲" : "▼"} {pct(Math.abs(trend))}
+            </span>
+          )}
+        </div>
+      </>
     );
   }
   if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" palette={palette || undefined} />;
@@ -319,17 +322,29 @@ export function WidgetCard({
   const showValues = widget.spec?.show_values !== false;
   const isKpi = widget.type === "kpi";
 
+  if (isKpi) {
+    return (
+      <div className="kpi">
+        {actions && (
+          <div style={{ position: "absolute", top: 6, right: 8, zIndex: 2, display: "flex", gap: 6 }}>{actions}</div>
+        )}
+        {isLoading ? (
+          <Loading />
+        ) : error ? (
+          <div className="widget-error">{(error as Error).message}</div>
+        ) : data ? (
+          <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <section className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-      {!isKpi && (
-        <div className="panel-head" style={{ flex: "0 0 auto" }}>
-          <div className="panel-title dg-drag">{widget.title}</div>
-          {actions}
-        </div>
-      )}
-      {isKpi && actions && (
-        <div style={{ position: "absolute", top: 6, right: 8, zIndex: 2, display: "flex", gap: 6 }}>{actions}</div>
-      )}
+      <div className="panel-head" style={{ flex: "0 0 auto" }}>
+        <div className="panel-title dg-drag">{widget.title}</div>
+        {actions}
+      </div>
       <div
         className="panel-body"
         style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}
@@ -340,7 +355,7 @@ export function WidgetCard({
           ) : error ? (
             <div className="widget-error">{(error as Error).message}</div>
           ) : data ? (
-            <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} />
+            <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} />
           ) : null}
         </div>
       </div>
@@ -359,35 +374,81 @@ export function WidgetGrid({
   date,
   mode = "live",
   rowHeight = ROW_HEIGHT,
+  kpiBand = true,
 }: {
   layout: Layout;
   date: string;
   mode?: "live" | "archive";
   rowHeight?: number;
+  /** KPI 单独排成 6 列 88px 数字带（与样卡 .kpis 一致）；看板编辑器/大屏用原栅格。 */
+  kpiBand?: boolean;
 }) {
   const widgets = layout.widgets || [];
   if (!widgets.length) return <Empty text="这个页面还没有组件" />;
-  const rows = Math.max(...widgets.map((item) => item.y + item.h), 1);
+
   // 旧版 cellW=(W-gap*(cols+1))/cols；用 (100% - 156px) 表示总列宽，再按 x/12、w/12 折算。
   const span = (n: number) => (n / COLS).toFixed(6);
   const gutter = ROW_GAP * (COLS + 1);
+
+  if (!kpiBand) {
+    const rows = Math.max(...widgets.map((item) => item.y + item.h), 1);
+    return (
+      <div style={{ position: "relative", height: rows * (rowHeight + ROW_GAP) + ROW_GAP }}>
+        {widgets.map((widget) => (
+          <div
+            key={widget.id}
+            style={{
+              position: "absolute",
+              left: `calc((100% - ${gutter}px) * ${span(widget.x)} + ${ROW_GAP + widget.x * ROW_GAP}px)`,
+              top: ROW_GAP + widget.y * (rowHeight + ROW_GAP),
+              width: `calc((100% - ${gutter}px) * ${span(widget.w)} + ${(widget.w - 1) * ROW_GAP}px)`,
+              height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
+            }}
+          >
+            <WidgetCard widget={widget} date={date} mode={mode} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // KPI 让出的行数从下方组件的 y 里减掉，整体上移，避免留白。
+  const kpis = widgets.filter((item) => item.type === "kpi").sort((a, b) => a.y - b.y || a.x - b.x);
+  const panels = widgets.filter((item) => item.type !== "kpi");
+  const kpiRows = kpis.length ? Math.max(...kpis.map((item) => item.y + item.h)) : 0;
+  const rows = panels.length ? Math.max(...panels.map((item) => Math.max(0, item.y - kpiRows) + item.h), 1) : 0;
+
   return (
-    <div style={{ position: "relative", height: rows * (rowHeight + ROW_GAP) + ROW_GAP }}>
-      {widgets.map((widget) => (
-        <div
-          key={widget.id}
-          style={{
-            position: "absolute",
-            left: `calc((100% - ${gutter}px) * ${span(widget.x)} + ${ROW_GAP + widget.x * ROW_GAP}px)`,
-            top: ROW_GAP + widget.y * (rowHeight + ROW_GAP),
-            width: `calc((100% - ${gutter}px) * ${span(widget.w)} + ${(widget.w - 1) * ROW_GAP}px)`,
-            height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
-          }}
-        >
-          <WidgetCard widget={widget} date={date} mode={mode} />
+    <>
+      {kpis.length > 0 && (
+        <div className="kpis" style={{ marginBottom: panels.length ? 12 : 0 }}>
+          {kpis.map((widget) => (
+            <WidgetCard key={widget.id} widget={widget} date={date} mode={mode} />
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+      {panels.length > 0 && (
+        <div style={{ position: "relative", height: rows * (rowHeight + ROW_GAP) + ROW_GAP }}>
+          {panels.map((widget) => {
+            const y = Math.max(0, widget.y - kpiRows);
+            return (
+              <div
+                key={widget.id}
+                style={{
+                  position: "absolute",
+                  left: `calc((100% - ${gutter}px) * ${span(widget.x)} + ${ROW_GAP + widget.x * ROW_GAP}px)`,
+                  top: ROW_GAP + y * (rowHeight + ROW_GAP),
+                  width: `calc((100% - ${gutter}px) * ${span(widget.w)} + ${(widget.w - 1) * ROW_GAP}px)`,
+                  height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
+                }}
+              >
+                <WidgetCard widget={widget} date={date} mode={mode} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
