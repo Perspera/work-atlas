@@ -74,6 +74,15 @@ class WmsMixin:
         except wms_manage.WmsError as exc:
             self._wms_error(exc)
 
+    def api_wms_download_sync(self, _match, _query):
+        self.require("action.scan")
+        try:
+            result = wms_manage.sync_now()
+            db.audit(self.conn, self.user, self.client_ip(), "wms.sync", "WMS自动下载", "手动补传服务器")
+            self.json_out(result)
+        except wms_manage.WmsError as exc:
+            self._wms_error(exc)
+
     def api_wms_download_log(self, _match, query):
         self.require("page.sources")
         try:

@@ -6,10 +6,11 @@
 ## 1. 前置条件
 
 - Windows 当前用户保持登录；任务计划按“当前用户登录时运行”。
-- Chrome：`C:\Program Files\Google\Chrome\Application\chrome.exe`
-- Node：`C:\Users\Administrator\node-v22.23.2-win-x64\node.exe`
-- Puppeteer Core：`C:\Users\Administrator\.dsh\profiles\desktop\node_modules\puppeteer-core`
-- Python/openpyxl：用于下载文件表头校验（默认使用 DSH 运行时 Python）。
+- Chrome：脚本会按 `config.chromePath` → `CHROME_PATH` → `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe` → `C:\Program Files\Google\Chrome\Application\chrome.exe` → `Program Files (x86)` → `msedge.exe` 依次探测，所以换机器一般不用改配置。
+- Node：`run_wms_download.bat` 里默认 `F:\APP\dev_env\Node.js\node.exe`，找不到时回退 `C:\Program Files\nodejs\node.exe`、再回退 PATH 里的 `node`。
+- Puppeteer Core：`C:\Users\Administrator\.dsh\profiles\desktop\node_modules\puppeteer-core`（也可写 `puppeteerPath`）。
+- Python/openpyxl：用于下载文件表头校验（默认使用 DSH 运行时 Python，见 `pythonPath`）。
+- 免密 SSH/SCP：同步到服务器需要本机能 `ssh root@8.163.57.96` 免密登录（`scp.exe`/`ssh.exe` 在 `C:\Windows\System32\OpenSSH\`）。
 
 以上路径均可在 `wms.config.json` / `run_wms_download.bat` 中改。
 
@@ -88,6 +89,41 @@ run_wms_download.bat --yesterday
 - `validation.requiredHeaders`：校验 Excel/CSV 必需表头；不通过不会交付。
 - 同日期文件已存在：`overwriteDeliver: true` 覆盖，`false` 自动加日期后缀。
 
+## 5.1 同步到服务器数据源目录（serverSync）
+
+线上看板（`WORK_ATLAS_ENV=prod`）只扫 `/opt/work-atlas/share`。WMS 的 SSO 登录页在内网
+（`10.8.255.70:18080`），阿里云服务器访问不到，所以下载必须在装了 aTrust 且已登录的 Windows 机器上执行，
+下载完再把文件推给服务器。
+
+```json
+"serverSync": {
+  "target": "root@8.163.57.96",
+  "remoteDir": "/opt/work-atlas/share",
+  "scpPath": "C:\\Windows\\System32\\OpenSSH\\scp.exe",
+  "sshPath": "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+  "timeoutMs": 120000,
+  "required": true,
+  "namePattern": "出库流程节点时间跟踪",
+  "maxFiles": 5
+}
+```
+
+- `download_wms.js` 交付成功后自动调 `pushToServer()`（scp 上传 + `ssh stat -c %s` 校验字节数）。
+- `run_wms_download.bat` 在下载之后**无条件**再跑一次 `sync_to_server.js`：即使下载失败（例如 aTrust 掉线），
+  也会把交付目录里新出现的文件补传上去——文件可能是人工或别的机器放进来的。
+- `sync_to_server.js` 单独用法：
+
+```bat
+node sync_to_server.js --config wms.config.json            # 同步最新 5 个
+node sync_to_server.js --config wms.config.json --all      # 忽略状态文件，全部重传
+node sync_to_server.js --config wms.config.json --dry-run  # 只看要传哪些
+node download_wms.js --config wms.config.json --sync-file "Z:\单据登记\测试\xxx.xlsx"   # 只补传指定文件
+```
+
+- 去重状态在 `logs/sync-state.json`，键是「文件名|字节数|mtime」，所以文件内容更新（大小或时间变）会重新上传。
+- 服务器看板每 60 秒自动扫描导入，不需要人工触发。
+- 前置条件：本机能免密 `ssh root@8.163.57.96`；同步失败的详细日志在 `logs/sync.log`。
+
 ## 6. 定时执行（频次/间隔可自定义）
 
 配置在 `wms.config.json` 的 `schedule` 中，也可以安装时用参数覆盖：
@@ -153,6 +189,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File uninstall_task.ps1
 | 文件 | 作用 |
 |---|---|
 | `download_wms.js` | 主脚本 |
+| `sync_to_server.js` | 把交付目录的文件同步到看板服务器数据源目录（scp + 校验） |
 | `setup_capture.js` | 首次抓控件 |
 | `validate_download.py` | 下载文件表头/行数校验 |
 | `wms.config.example.json` | 配置样例 |

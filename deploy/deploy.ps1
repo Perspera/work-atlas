@@ -1,4 +1,4 @@
-# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
+﻿# 单量与作业进度看板：一键发布脚本（Windows 本地执行）
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1
@@ -41,10 +41,16 @@ if (Test-Path $localTgz) { Remove-Item $localTgz -Force }
     --exclude='./.git' `
     --exclude='./.trae' `
     --exclude='./.trae-html-share-packages' `
+    --exclude='./.scratch' `
     --exclude='./data' `
     --exclude='./__pycache__' `
     --exclude='./tools/__pycache__' `
     --exclude='./frontend/node_modules' `
+    --exclude='./tools/wms_download/logs' `
+    --exclude='./tools/wms_download/downloads' `
+    --exclude='./tools/wms_download/profile' `
+    --exclude='./tools/wms_download/node_modules' `
+    --exclude='./tools/wms_download/secrets.local.json' `
     -C $repo .
 if ($LASTEXITCODE -ne 0) { throw '打包失败' }
 Write-Host ("  已生成 {0:N1} MB" -f ((Get-Item $localTgz).Length / 1MB))
@@ -84,8 +90,15 @@ if [ -f "$UNIT" ]; then
     systemctl daemon-reload
 fi
 
+# 运行依赖（openpyxl 读 xlsx）。缺了会导致导入报 No module named 'openpyxl'
 mkdir -p "$REL"
 tar -xzf "$TGZ" -C "$REL"
+if ! /usr/bin/python3.11 -c "import openpyxl" >/dev/null 2>&1; then
+    echo "  安装运行依赖（openpyxl）"
+    /usr/bin/python3.11 -m pip install --quiet -r "$REL/requirements.txt" 2>/dev/null \
+        || /usr/bin/python3.11 -m pip install --quiet openpyxl
+fi
+
 ln -sfn "$APP/shared/data" "$REL/data"
 
 PREV=$(readlink -f "$APP/current" 2>/dev/null || true)

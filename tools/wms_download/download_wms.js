@@ -19,6 +19,7 @@ const ROOT = __dirname;
 const DEFAULT_PUPPETEER = 'C:\\Users\\Administrator\\.dsh\\profiles\\desktop\\node_modules\\puppeteer-core';
 const DEFAULT_CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const DEFAULT_PYTHON = 'C:\\Users\\Administrator\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\python\\python.exe';
+const DEFAULT_SCP = 'C:\\Windows\\System32\\OpenSSH\\scp.exe';
 
 let currentPage = null;
 let currentBrowser = null;
@@ -68,6 +69,7 @@ function parseArgs(argv) {
     else if (item === '--yesterday') args.yesterday = true;
     else if (item === '--headless') args.headless = true;
     else if (item === '--headed') args.headless = false;
+    else if (item === '--sync-file') args.syncFile = argv[++i];
     else if (item === '--help' || item === '-h') args.help = true;
     else fail(`未知参数：${item}`);
   }
@@ -714,6 +716,70 @@ function validateFile(file, validation) {
   return stat;
 }
 
+function _syncSettings(config) {
+  const raw = config.serverSync || {};
+  const target = String(raw.target || '').trim();
+  const remoteDir = String(raw.remoteDir || '').trim();
+  if (!target || !remoteDir) return null;
+  const scpPath = raw.scpPath || DEFAULT_SCP;
+  if (!fs.existsSync(scpPath)) fail(`找不到 scp：${scpPath}`);
+  return {
+    target,
+    remoteDir: remoteDir.replace(/\\/g, '/').replace(/\/+$/, ''),
+    scpPath,
+    sshPath: raw.sshPath || path.join(path.dirname(scpPath), 'ssh.exe'),
+    timeoutMs: Number(raw.timeoutMs) || 120000,
+    required: raw.required !== false,
+    // 服务器上看板只扫描 share 目录，文件名保持原样（含中文），用 -- 保护以 - 开头的名字
+  };
+}
+
+function pushToServer(localFile, config, tag) {
+  const settings = _syncSettings(config);
+  if (!settings) {
+    log('未配置 serverSync，跳过服务器同步');
+    return { synced: false, skipped: true };
+  }
+  const name = path.basename(localFile);
+  const remotePath = `${settings.remoteDir}/${name}`;
+  const opts = ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=20'];
+  log(`同步到服务器：${settings.target}:${remotePath}`);
+  const put = spawnSync(
+    settings.scpPath,
+    [...opts, localFile, `${settings.target}:${remotePath}`],
+    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs }
+  );
+  if (put.status !== 0) {
+    const detail = (put.stderr || put.stdout || put.error?.message || '').trim();
+    const message = `同步到服务器失败（${tag || 'deliver'}）：${detail || `scp 退出码 ${put.status}`}`;
+    if (settings.required) fail(message);
+    log(`警告：${message}`);
+    return { synced: false, error: message };
+  }
+  const size = fs.statSync(localFile).size;
+  const check = spawnSync(
+    settings.sshPath,
+    [...opts, settings.target, `stat -c %s -- ${JSON.stringify(remotePath)}`],
+    { encoding: 'utf8', windowsHide: true, timeout: settings.timeoutMs }
+  );
+  const remoteSize = Number(String(check.stdout || '').trim());
+  if (check.status !== 0 || !Number.isFinite(remoteSize)) {
+    const detail = (check.stderr || check.stdout || '').trim();
+    const message = `服务器文件校验失败：${detail || '无法读取远端文件大小'}`;
+    if (settings.required) fail(message);
+    log(`警告：${message}`);
+    return { synced: false, error: message };
+  }
+  if (remoteSize !== size) {
+    const message = `服务器文件大小不一致：本地 ${size} 字节，远端 ${remoteSize} 字节`;
+    if (settings.required) fail(message);
+    log(`警告：${message}`);
+    return { synced: false, error: message };
+  }
+  log(`已同步到服务器：${remotePath}（${size} 字节）`);
+  return { synced: true, remote: remotePath, size };
+}
+
 function validateHeaders(file, validation, pythonPath) {
   const required = (validation && validation.requiredHeaders) || [];
   if (!required.length) return;
@@ -733,13 +799,30 @@ function validateHeaders(file, validation, pythonPath) {
   log(`表头校验通过：${(result.stdout || '').trim()}`);
 }
 
+function findChrome(config) {
+  const localAppData = process.env.LOCALAPPDATA || '';
+  const candidates = [
+    config.chromePath,
+    process.env.CHROME_PATH,
+    localAppData ? path.join(localAppData, 'Google\\Chrome\\Application\\chrome.exe') : '',
+    DEFAULT_CHROME,
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  ].filter(Boolean);
+  for (const item of candidates) {
+    if (fs.existsSync(item)) return item;
+  }
+  return '';
+}
+
 async function openBrowser(config) {
   const puppeteerPath = process.env.PUPPETEER_CORE_PATH || config.puppeteerPath || DEFAULT_PUPPETEER;
   let puppeteer;
   try { puppeteer = require(puppeteerPath); }
   catch (error) { fail(`无法加载 puppeteer-core：${puppeteerPath}\n${error.message}`); }
-  const executablePath = config.chromePath || DEFAULT_CHROME;
-  if (!fs.existsSync(executablePath)) fail(`Chrome 不存在：${executablePath}`);
+  const executablePath = findChrome(config);
+  if (!executablePath) fail(`Chrome 不存在：${config.chromePath || DEFAULT_CHROME}（可在 wms.config.json 配置 chromePath）`);
+
   const userDataDir = resolvePath(config.profileDir || 'profile', ROOT);
   ensureDir(userDataDir);
   const headless = config.headless === true;
@@ -836,7 +919,9 @@ async function downloadFlow(config, args, secrets) {
       ensureDir(archiveDir);
       fs.copyFileSync(downloaded, path.join(archiveDir, `${date}-${targetName}`));
     }
-    return { date, file: target, size: stat.size, source: downloaded };
+    // 交付目录若是网络盘/本机目录，服务器扫不到，再推一份到服务器数据源目录
+    const sync = pushToServer(target, config, 'deliver');
+    return { date, file: target, size: stat.size, source: downloaded, sync };
   } catch (error) {
     await captureFailure(currentPage, error.message);
     throw error;
@@ -851,6 +936,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
     console.log('用法：node download_wms.js --config wms.config.json [--date YYYY-MM-DD|--today|--yesterday] [--headless|--headed]');
+    console.log('      node download_wms.js --config wms.config.json --sync-file <本地文件>   # 只补传文件到服务器数据源目录');
     return 0;
   }
   const configPath = resolvePath(args.config, ROOT);
@@ -867,6 +953,16 @@ async function main() {
   }
   runDir = resolvePath(config.logDir || 'logs', ROOT);
   ensureDir(runDir);
+  if (args.syncFile) {
+    // 只做补传：把本地已有文件推到服务器数据源目录（不启动浏览器）
+    const local = resolvePath(args.syncFile, ROOT);
+    if (!fs.existsSync(local)) fail(`找不到要同步的文件：${local}`);
+    const stat = fs.statSync(local);
+    validateFile(local, config.validation || {});
+    const sync = pushToServer(local, config, 'manual');
+    log(`完成：${JSON.stringify({ file: local, size: stat.size, sync })}`);
+    return sync.synced || sync.skipped ? 0 : 1;
+  }
   const release = singleInstanceLock();
   try {
     const retries = Math.max(0, Math.min(3, Number(config.retries) || 0));

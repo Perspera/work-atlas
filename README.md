@@ -139,8 +139,8 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 数据源页现在直接提供 WMS 自动下载配置，不需要命令行：
 
 - 编辑 WMS 地址、查询日期（今天/昨天/固定/相对）、执行方式（每天时间点或 08:00–21:00 每 10 分钟）、下载目录；
-- 「保存配置」「立即下载」「启用/更新定时任务」「暂停」「移除任务」「查看日志」；
-- 面板显示定时任务状态、下次运行、最近一次成功/失败和最近导入文件；
+- 「保存配置」「立即下载」「补传服务器」「启用/更新定时任务」「暂停」「移除任务」「查看日志」；
+- 面板显示定时任务状态、下次运行、最近一次成功/失败、服务器同步目标和最近导入文件；
 - 配置写入 `tools/wms_download/wms.config.json`，保留页面选择器/登录/导出设置；不保存 WMS 密码（当前使用 aTrust SSO / 已登录会话）；
 - 立即下载会启动后台 Node 进程，完成后自动触发扫描导入；定时任务仍由 Windows 任务计划执行。
 
@@ -154,6 +154,28 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 - Windows 任务计划每天定时执行；支持昨天/今天/指定日期；
 - 账号密码放本机 `secrets.local.json`，不写入代码/日志；
 - 首次需要填 WMS 地址/页面选择器，详见 [tools/wms_download/README.md](tools/wms_download/README.md)。
+
+#### 下载后同步到服务器数据源目录
+
+WMS 的 SSO 登录页在**内网**（`10.8.255.70:18080`），阿里云服务器连不上，所以「打开 WMS 下载」只能在装了 aTrust 并已登录的 Windows 机器上跑；
+服务器侧只负责「接收文件 + 扫描导入」。为此 `wms.config.json` 增加了 `serverSync`：
+
+```json
+"serverSync": {
+  "target": "root@8.163.57.96",
+  "remoteDir": "/opt/work-atlas/share",
+  "timeoutMs": 120000,
+  "required": true,
+  "namePattern": "出库流程节点时间跟踪",
+  "maxFiles": 5
+}
+```
+
+- `run_wms_download.bat` 先下载，**再无条件**跑 `sync_to_server.js`（下载失败也同步，文件可能是人工放进交付目录的）；
+- 同步用 `scp` 上传后 `ssh stat -c %s` 校验字节数，不一致算失败；已同步过的文件按「名称+大小+mtime」记在 `logs/sync-state.json` 里跳过；
+- 服务器看板每 60 秒扫描 `/opt/work-atlas/share`，文件到了自动导入，不需要人工点扫描；
+- 面板上的「补传服务器」= `POST /api/wms-download/sync`，等价于手工跑一次 `sync_to_server.js`；
+- 免密登录前提：本机 `%USERPROFILE%\.ssh` 里有能直连服务器的密钥（`ssh root@8.163.57.96` 不需密码）。
 
 ### 自动归档与归档查询（数据源页）
 

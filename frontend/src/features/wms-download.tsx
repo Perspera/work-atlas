@@ -15,6 +15,13 @@ interface WmsSchedule {
   times?: string[];
 }
 
+interface WmsServerSync {
+  enabled?: boolean;
+  target?: string;
+  remoteDir?: string;
+  required?: boolean;
+}
+
 interface WmsConfig {
   url?: string;
   dateMode?: string;
@@ -23,6 +30,7 @@ interface WmsConfig {
   deliverDir?: string;
   loginMode?: string;
   schedule?: WmsSchedule;
+  serverSync?: WmsServerSync;
 }
 
 interface WmsTask {
@@ -42,6 +50,7 @@ interface WmsLastRun {
 interface WmsState {
   config: WmsConfig;
   task: WmsTask;
+  host?: { windows?: boolean };
   lastRun: WmsLastRun;
   lastSummary?: string | null;
   latest?: { file?: { name?: string; rows?: number; imported_at?: string } } | null;
@@ -56,6 +65,11 @@ const DATE_MODES: [string, string][] = [
 ];
 
 function statusText(data: WmsState): string {
+  if (data.host && data.host.windows === false) {
+    const parts = ["线上服务器：仅查看"];
+    if (data.latest && data.latest.file) parts.push("最近导入 " + (data.latest.file.imported_at || ""));
+    return parts.join(" · ");
+  }
   const task = data.task || {};
   const last = data.lastRun || {};
   const parts: string[] = [];
@@ -228,12 +242,31 @@ export default function WmsPanel() {
     }
   };
 
+  const syncNow = async () => {
+    setBusy(true);
+    setHint("正在把交付目录的文件补传到服务器…");
+    try {
+      const result = await api<{ output?: string }>("/api/wms-download/sync", { method: "POST" });
+      const tail = (result.output || "").trim().split("\n").slice(-1)[0] || "同步完成";
+      setHint(tail);
+      toast("已补传服务器", "ok");
+      void state.refetch();
+    } catch (error) {
+      setHint("");
+      toast((error as Error).message, "err");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const data = state.data;
   const cfg = data?.config || {};
   const task = data?.task || {};
   const latestFile = data?.latest?.file;
   const lastText = (data?.lastSummary || "").replace(/^\[[^\]]+\]\s*/, "");
   const enabled = task.enabled;
+  // 下载/定时任务/同步都依赖本机 Windows 环境；线上 Linux 只能看状态
+  const localHost = data?.host?.windows !== false;
 
   return (
     <>
@@ -246,8 +279,18 @@ export default function WmsPanel() {
         {state.error && <Empty text={(state.error as Error).message} />}
         {data && form && (
           <>
+            {!localHost && (
+              <div className="small muted" style={{ marginBottom: 10 }}>
+                当前是线上服务器（Linux）：WMS 下载与服务器同步只能在装了 aTrust 的 Windows 下载机上执行，
+                这里只能查看状态与日志。数据源目录 <code>/opt/work-atlas/share</code> 由下载机 scp 推送文件后自动导入。
+              </div>
+            )}
             <div className="small muted" style={{ marginBottom: 10 }}>
               登录方式：{cfg.loginMode || "aTrust SSO / 复用已登录会话"}
+              {" · "}
+              {cfg.serverSync?.enabled
+                ? `服务器同步：${cfg.serverSync.target}:${cfg.serverSync.remoteDir}`
+                : "服务器同步：未配置（仅交付到本机/共享盘）"}
               {" · "}
               {latestFile
                 ? `最近导入：${latestFile.name || ""} · ${num(latestFile.rows)} 行 · ${latestFile.imported_at || ""}`
@@ -320,20 +363,24 @@ export default function WmsPanel() {
               </div>
             </div>
             <div className="toolbar" style={{ marginTop: 2 }}>
-              <button className="btn btn-primary" disabled={!canScan || busy} onClick={() => void onSave()}>
+              <button className="btn btn-primary" disabled={!canScan || !localHost || busy} onClick={() => void onSave()}>
                 保存配置
               </button>
-              <button className="btn" disabled={!canScan || busy} onClick={() => void runDownload()}>
+              <button className="btn" disabled={!canScan || !localHost || busy} onClick={() => void runDownload()}>
                 立即下载
               </button>
-              <button className="btn" disabled={!canScan || busy} onClick={() => void applySchedule("install")}>
+              <button className="btn" disabled={!canScan || !localHost || !cfg.serverSync?.enabled || busy}
+                onClick={() => void syncNow()}>
+                补传服务器
+              </button>
+              <button className="btn" disabled={!canScan || !localHost || busy} onClick={() => void applySchedule("install")}>
                 {enabled ? "更新定时任务" : "启用定时任务"}
               </button>
-              <button className="btn" disabled={!canScan || !task.installed || busy}
+              <button className="btn" disabled={!canScan || !localHost || !task.installed || busy}
                 onClick={() => void applySchedule("disable")}>
                 暂停
               </button>
-              <button className="btn btn-ghost" disabled={!canScan || !task.installed || busy}
+              <button className="btn btn-ghost" disabled={!canScan || !localHost || !task.installed || busy}
                 onClick={() => void onRemove()}>
                 移除任务
               </button>

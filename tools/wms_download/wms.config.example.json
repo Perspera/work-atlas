@@ -1,68 +1,74 @@
 {
-  "url": "https://wms.example.com/",
+  "url": "https://wms.wanyouauto.com.cn/portal.do",
   "queryUrl": "",
-  "dateMode": "yesterday",
+  "dateMode": "today",
   "dateFormat": "YYYY-MM-DD",
   "timezone": "Asia/Shanghai",
   "headless": true,
+  "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "nodePath": "C:\\Program Files\\nodejs\\node.exe",
+  "puppeteerPath": "C:\\Users\\Administrator\\.dsh\\profiles\\desktop\\node_modules\\puppeteer-core",
+  "pythonPath": "C:\\Users\\Administrator\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\python\\python.exe",
+  "logDir": "logs",
   "downloadDir": "downloads/tmp",
   "deliverDir": "Z:\\单据登记\\测试",
+  "serverSync": {
+    "target": "root@8.163.57.96",
+    "remoteDir": "/opt/work-atlas/share",
+    "scpPath": "C:\\Windows\\System32\\OpenSSH\\scp.exe",
+    "sshPath": "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+    "timeoutMs": 120000,
+    "required": true,
+    "namePattern": "出库流程节点时间跟踪",
+    "maxFiles": 5
+  },
   "overwriteDeliver": true,
   "keepDownloadCopy": true,
-  "timeoutMs": 60000,
+  "timeoutMs": 180000,
   "retries": 0,
   "manualLogin": false,
   "login": {
-    "username": "#username",
-    "password": "#password",
-    "submit": "button[type=submit]",
-    "success": ".user-name",
+    "skip": true,
+    "success": "#cl-top-buttons-exit",
+    "assumeLoggedInIfNoForm": true,
+    "username": "",
+    "password": "",
+    "submit": "",
     "captcha": ""
   },
-  "preSteps": [
-    {
-      "type": "click",
-      "text": "出库管理"
-    },
-    {
-      "type": "click",
-      "text": "出库流程节点时间跟踪"
-    }
-  ],
+  "preSteps": [],
   "query": {
-    "dateInput": "input[name=orderDate]",
-    "dateEndInput": "",
-    "search": {
-      "text": "查询"
-    },
-    "result": ".el-table__row",
-    "empty": ".el-table__empty-text",
-    "download": {
-      "text": "导出"
-    },
-    "downloadFetchUrl": "",
-    "downloadWaitMs": 120000
+    "dateInput": "input[name=\"订单日期\"]",
+    "dateFormat": "YYYY-MM-DD",
+    "search": { "text": "查询" },
+    "result": "#customize_report_view_grid_180 tr.jqgrow",
+    "emptyText": "没有记录",
+    "loadingText": "读取中",
+    "download": { "text": "导出" },
+    "downloadWaitMs": 180000,
+    "exportDialog": {
+      "grid": "#g_plat_customize_report_export_settings",
+      "allDataText": "所有过滤数据",
+      "confirmText": "导出",
+      "functionName": "exportData",
+      "captureForm": true
+    }
   },
   "validation": {
-    "extensions": [
-      ".xlsx",
-      ".xls",
-      ".csv"
-    ],
+    "extensions": [".xlsx", ".xls", ".csv"],
     "minBytes": 1024,
-    "requiredHeaders": [
-      "订单日期",
-      "波次号"
-    ]
+    "requiredHeaders": ["订单日期", "波次号"]
   },
-  "relativeDays": 0,
   "schedule": {
     "mode": "interval",
     "intervalMinutes": 10,
     "startTime": "08:00",
     "endTime": "21:00",
-    "times": [
-      "08:30"
-    ]
-  }
+    "times": ["08:30"]
+  },
+  "portalWaitMs": 120000,
+  "formWaitMs": 90000,
+  "menuItemText": "出库流程节点时间跟踪",
+  "fixedDate": "",
+  "relativeDays": 0
 }

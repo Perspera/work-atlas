@@ -1,3 +1,12 @@
-# 本项目只依赖 Python 标准库，无需安装任何第三方包（因此本文件没有可安装项）。
-# 运行环境：Python 3.12 及以上（当前部署在 3.13.9 上验证通过）。
+# 运行依赖：只有 Excel 解析需要第三方包。
+# 其余全部是 Python 标准库。
+#
+# openpyxl 用于读取 WMS/TMS 导出的 .xlsx（backend/collect/ingest.py 的 _read_xlsx）。
+# 线上 systemd 用 /usr/bin/python3.11 启动 server.py，必须装到那个解释器里：
+#   /usr/bin/python3.11 -m pip install -r requirements.txt
+# 装完必须 systemctl restart work-atlas，否则已运行的进程仍用旧 sys.path，导入会报
+#   "读取失败：No module named 'openpyxl'"
+openpyxl>=3.1,<4
+
+# 运行环境：Python 3.11 及以上（线上 /usr/bin/python3.11 已验证）。
 # 启动：双击「启动看板.bat」，或命令行 python server.py

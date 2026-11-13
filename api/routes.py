@@ -97,6 +97,7 @@ ROUTES = [
             ("GET", r"^/api/wms-download/run$", "api_wms_download_run_state"),
             ("POST", r"^/api/wms-download/run/stop$", "api_wms_download_stop"),
             ("POST", r"^/api/wms-download/schedule$", "api_wms_download_schedule"),
+            ("POST", r"^/api/wms-download/sync$", "api_wms_download_sync"),
             ("GET", r"^/api/wms-download/log$", "api_wms_download_log"),
             ("GET", r"^/api/source-archives$", "api_source_archives"),
             ("GET", r"^/api/export/source-archive.csv$", "api_export_source_archive"),

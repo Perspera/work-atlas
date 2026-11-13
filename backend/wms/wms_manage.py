@@ -24,8 +24,8 @@ LOCK_PATH = os.path.join(AUTO_DIR, ".wms_download.lock")
 BAT_PATH = os.path.join(AUTO_DIR, "run_wms_download.bat")
 VBS_PATH = os.path.join(AUTO_DIR, "run_wms_download.vbs")
 TASK_NAME = "WMS-Daily-Download"
-DEFAULT_NODE = r"C:\Users\Administrator\node-v22.23.2-win-x64\node.exe"
-DEFAULT_CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+DEFAULT_NODE = r"F:\APP\dev_env\Node.js\node.exe"
+DEFAULT_CHROME = os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")
 PYTHON = sys.executable
 
 _LOCK = threading.Lock()
@@ -160,6 +160,21 @@ def save_config(payload):
     return config
 
 
+def _public_sync(config):
+    """服务器同步配置对外只读展示，不回传 scp/ssh 绝对路径。"""
+    sync = config.get("serverSync") or {}
+    if not isinstance(sync, dict):
+        return {"enabled": False}
+    target = str(sync.get("target") or "").strip()
+    remote = str(sync.get("remoteDir") or "").strip()
+    return {
+        "enabled": bool(target and remote),
+        "target": target,
+        "remoteDir": remote,
+        "required": sync.get("required") is not False,
+    }
+
+
 def public_config(config):
     schedule = dict(config.get("schedule") or {})
     return {
@@ -170,6 +185,7 @@ def public_config(config):
         "deliverDir": config.get("deliverDir") or "",
         "headless": bool(config.get("headless", True)),
         "schedule": schedule,
+        "serverSync": _public_sync(config),
         "loginMode": "aTrust SSO / 复用已登录会话" if (config.get("login") or {}).get("skip") else "账号密码",
     }
 
@@ -390,6 +406,8 @@ def _node_path(config):
 
 def start_run(date=None):
     global _CURRENT
+    if os.name != "nt":
+        raise WmsError("WMS 下载只能在本机（Windows 下载机）执行", 400)
     with _LOCK:
         if _CURRENT and _CURRENT.get("proc") is not None and _CURRENT["proc"].poll() is None:
             raise WmsError("已有 WMS 下载正在运行，请稍后再试", 409)
@@ -472,6 +490,31 @@ def logs(tail=200):
     }
 
 
+def sync_now():
+    """把交付目录里的最新文件补传到服务器数据源目录（不启动浏览器）。"""
+    if os.name != "nt":
+        raise WmsError("服务器同步只能在本机（Windows 下载机）执行", 400)
+    config = load_config()
+    sync = config.get("serverSync") or {}
+    if not (isinstance(sync, dict) and sync.get("target") and sync.get("remoteDir")):
+        raise WmsError("未配置服务器同步（wms.config.json 的 serverSync）", 400)
+    node = _node_path(config)
+    script = os.path.join(AUTO_DIR, "sync_to_server.js")
+    if not os.path.isfile(script):
+        raise WmsError("找不到同步脚本：%s" % script, 500)
+    os.makedirs(LOG_DIR, exist_ok=True)
+    proc = subprocess.run(
+        [node, script, "--config", CONFIG_PATH],
+        cwd=AUTO_DIR, capture_output=True, text=True, timeout=300,
+        encoding="utf-8", errors="replace",
+        creationflags=_PROCESS_FLAGS,
+    )
+    output = (proc.stdout or "") + (proc.stderr or "")
+    if proc.returncode != 0:
+        raise WmsError("同步失败：%s" % (output.strip()[-800:] or "退出码 %s" % proc.returncode), 500)
+    return {"ok": True, "output": output.strip()[-4000:]}
+
+
 def state(conn, tail=200):
     config = load_config()
     status = run_status()
@@ -482,6 +525,7 @@ def state(conn, tail=200):
     return {
         "config": public_config(config),
         "task": task,
+        "host": {"windows": os.name == "nt"},
         "lastRun": status,
         "lastSummary": summary,
         "latest": latest_delivery(conn),
@@ -490,6 +534,8 @@ def state(conn, tail=200):
 
 
 def apply_schedule(action):
+    if os.name != "nt":
+        raise WmsError("定时任务只能在本机（Windows 下载机）管理", 400)
     if action == "install":
         if not os.path.isfile(os.path.join(AUTO_DIR, "install_task.py")):
             raise WmsError("找不到定时任务安装器", 500)
