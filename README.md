@@ -150,8 +150,9 @@ Z:\单据登记\测试\                ← 数据目录（config.json 可改）
 
 如果 WMS 只能网页登录、手工按日期导出，可用 `tools/wms_download/` 的浏览器自动化：
 
-- Chrome + Puppeteer 自动登录、进入查询页、填日期、查询、下载，并校验表头后放入 `Z:\单据登记\测试`；
-- Windows 任务计划每天定时执行；支持昨天/今天/指定日期；
+- Chrome + Puppeteer 自动登录、进入查询页、填日期、查询、下载，校验表头后落到本机交付目录（默认 `Z:\单据登记\测试`）；
+- 交付后立刻把文件 HTTP 上传给看板服务器（`POST /api/ingest/upload`），服务器落盘后立即扫描入库，不需要人工搬文件；
+- Windows 任务计划每天定时执行；支持昨天/今天/指定日期；换机器只需拷目录 + 改路径 + 填上传令牌（见该目录 README 的「在一台新机器上部署」）；
 - 账号密码放本机 `secrets.local.json`，不写入代码/日志；
 - 首次需要填 WMS 地址/页面选择器，详见 [tools/wms_download/README.md](tools/wms_download/README.md)。
 

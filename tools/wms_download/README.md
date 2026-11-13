@@ -1,7 +1,7 @@
 # WMS 浏览器自动登录 / 按日期下载
 
 用于外部 WMS 没有现成 API、只能在网页上“登录 → 查询页 → 输入日期 → 查询 → 导出”的场景。
-脚本用 Chrome + Puppeteer 操作浏览器，Windows 任务计划定时执行；下载文件放到看板数据源目录后，看板现有扫描器会自动导入。
+脚本用 Chrome + Puppeteer 操作浏览器，Windows 任务计划定时执行；下载后直接 HTTP 上传给看板（服务器落盘后立即入库），无需人工搬运文件。
 
 ## 1. 前置条件
 
@@ -35,10 +35,45 @@ copy secrets.local.example.json secrets.local.json
 编辑 `wms.config.json`：至少填写 `url`、`queryUrl`（可选）、`login.*`、`query.*`、`deliverDir`。
 编辑 `secrets.local.json`：填写 WMS 账号密码。**不要把 secrets.local.json 发到聊天或提交到代码库。**
 
+### 在一台新机器上部署（换机 / 加机器）
+
+整条链路里只有“下载”这一步依赖本机环境，其余都在服务器。新机器按下面顺序做一遍即可：
+
+1. **准备环境**（缺一不可）
+   - Windows 上装好 Chrome（或 Edge），并确认该账号**常驻登录**（任务只在用户登录时跑）。
+   - 装 Node.js 18+，记下 `node.exe` 绝对路径。
+   - 装 aTrust 并**手动登录一次**，浏览器能打开 `https://wms.wanyouauto.com.cn/portal.do`。
+   - 把整个 `tools/wms_download` 目录拷到新机器（或从 git 拉仓库）。
+2. **装依赖**：`cd tools\wms_download && npm install`（装 `puppeteer-core`）。
+   若机器上已有 puppeteer-core，可不装，改 `wms.config.json` 的 `puppeteerPath` 指过去。
+3. **建配置**：`copy wms.config.example.json wms.config.json`、`copy secrets.local.example.json secrets.local.json`，
+   然后改这几处（其余保持默认即可）：
+   - `chromePath` / `nodePath` / `puppeteerPath` / `pythonPath`：新机器上的真实路径（Chrome、Node 可留空让脚本自动探测）。
+   - `deliverDir`：新机器上的任意本地目录，例如 `D:\\wms_deliver`（不需要共享盘）。
+   - `serverSync.url`：`http://8.163.57.96:18081`；`serverSync.transport`：`http`。
+   - `secrets.local.json` 的 `dashboardToken`：看板「WMS 自动下载」面板里生成的上传令牌（**全公司共用同一个令牌**，
+     不需要在新机器上再生成；只有点“重置”才会换）。同一文件里也填 WMS 门户账号密码（`login.skip=true` 时可留空）。
+4. **跑一次可见模式**，让 profile 建立会话并确认选择器可用：
+   ```bat
+   node download_wms.js --config wms.config.json --headed --today
+   ```
+   成功标志：日志出现「表头校验通过 / 已交付 / 已同步到服务器…入库 N 行」。
+5. **装定时任务**：
+   ```bat
+   python install_task.py
+   ```
+   任务名默认 `WMS-Daily-Download`，按 `wms.config.json` 的 `schedule` 生效（当前：每天 08:00–21:00 每 10 分钟）。
+   立刻验证一次：`schtasks /Run /TN "WMS-Daily-Download"`，然后看 `logs\task.log`。
+6. **多台机器并存注意**
+   - 任务名相同会互相覆盖，第二台起请用 `python install_task.py --task WMS-Daily-Download-2` 换个名字。
+   - 上传令牌是全公司一个，多台机器可以共用；但**同一台机器**不要并发跑两个实例（脚本有 `.wms_download.lock` 单实例锁）。
+   - 多台机器都会往同一个 `/opt/work-atlas/share` 上传同名文件时，后到的覆盖先到的；服务器侧按内容 sha 判断，
+     内容相同会直接跳过，不会重复入库。
+
 ### 抓取页面控件
 
 ```bat
-"C:\Users\Administrator\node-v22.23.2-win-x64\node.exe" setup_capture.js --config wms.config.json
+node setup_capture.js --config wms.config.json
 ```
 
 脚本会打开可见 Chrome：
@@ -61,7 +96,7 @@ copy secrets.local.example.json secrets.local.json
 导出走「导出设置 → 所有过滤数据 → 导出」，脚本直接捕获 excel.do 表单下载。
 
 ```bat
-"C:\Users\Administrator\node-v22.23.2-win-x64\node.exe" download_wms.js --config wms.config.json --date 2026-11-05 --headed
+node download_wms.js --config wms.config.json --date 2026-11-05 --headed
 ```
 
 或：
@@ -84,7 +119,7 @@ run_wms_download.bat --yesterday
 ## 5. 下载与交付
 
 - `downloadDir`：临时下载目录（每轮清空，避免把旧文件当新文件）。
-- `deliverDir`：交付目录，默认 `Z:\单据登记\测试`；看板扫描器每 60 秒自动导入。
+- `deliverDir`：交付目录，默认 `Z:\单据登记\测试`；只是本地留档，交付后随即上传服务器入库（见 5.1）。换成新机器时可改成该机任意本地目录，例如 `D:\wms_deliver`。
 - `keepDownloadCopy`：在 `downloads/YYYY-MM-DD/` 留一份原始下载。
 - `validation.requiredHeaders`：校验 Excel/CSV 必需表头；不通过不会交付。
 - 同日期文件已存在：`overwriteDeliver: true` 覆盖，`false` 自动加日期后缀。
@@ -197,7 +232,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File uninstall_task.ps1
 ## 8. 本地自测
 
 ```bat
-"C:\Users\Administrator\node-v22.23.2-win-x64\node.exe" test_local.js
+node test_local.js
 ```
 
 `test_local.js` 会启动一个本地模拟 WMS 页面，验证登录、日期、查询、下载、表头校验、交付全流程，不需要真实 WMS。
@@ -206,8 +241,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File uninstall_task.ps1
 
 | 文件 | 作用 |
 |---|---|
-| `download_wms.js` | 主脚本 |
-| `sync_to_server.js` | 把交付目录的文件同步到看板服务器数据源目录（scp + 校验） |
+| `download_wms.js` | 主脚本（下载 → 校验 → 交付 → 上传入库） |
+| `server_push.js` | 送文件到服务器的公共模块：`http` 上传 / `scp` 上传两种通道 |
+| `sync_to_server.js` | 扫描 `deliverDir`，把新文件补传服务器（默认 HTTP 上传即入库） |
 | `setup_capture.js` | 首次抓控件 |
 | `validate_download.py` | 下载文件表头/行数校验 |
 | `wms.config.example.json` | 配置样例 |
