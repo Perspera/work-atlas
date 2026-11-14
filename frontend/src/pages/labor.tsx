@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { num } from "../lib/format";
 import { useBizDate } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
-import { Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Empty, Loading, Modal, PageHead, Panel, Seg } from "../components/ui";
 import { WidgetGrid, usePageLayout } from "../features/dashboard";
 
 interface LaborRow {
@@ -246,31 +246,32 @@ export default function LaborPage() {
     <>
       <PageHead
         title="人工作业量"
-        sub="按作业日期统计：拣货/复核分开计数；人效 = 行数 ÷ 有效作业工时（相邻作业间隔累计，自动扣除休息时段）"
+        sub={`按作业日期统计 ${data?.date || date} · 拣货/复核分开计数；人效 = 行数 ÷ 有效作业工时（自动扣除休息时段）`}
       >
-        {(["live", "archive"] as const).map((item) => (
-          <button key={item} className={`btn btn-sm${mode === item ? " btn-primary" : ""}`} onClick={() => setMode(item)}>
-            {item === "live" ? "实时" : "存档"}
-          </button>
-        ))}
+        <Seg
+          items={[
+            { key: "live", label: "实时" },
+            { key: "archive", label: "存档" },
+          ]}
+          value={mode}
+          onChange={setMode}
+        />
         {canArchive && <button className="btn" onClick={archive}>存档本日</button>}
         {canSettings && <button className="btn" onClick={() => setSettingsOpen(true)}>作业设置</button>}
         {hasPerm(me, "action.dashboard.edit") && (
           <button className="btn" onClick={() => navigate("/board/page/labor")}>编辑布局</button>
         )}
-        <button className="btn" onClick={() => refetch()}>刷新</button>      </PageHead>
+        <button className="btn" onClick={() => refetch()}>刷新</button>
+      </PageHead>
 
       {totals && (
-        <div className="panel" style={{ marginBottom: 10 }}>
-          <div className="panel-body small">
-            作业日期 <b>{data?.date}</b> · 拣货 <b>{num(totals.pick_rows)}</b> 行 / {num(totals.pick_hours, 1)}h → 人效{" "}
-            <b>{totals.pick_rate === null ? "-" : num(totals.pick_rate, 1)}</b> 行/小时 · 复核{" "}
-            <b>{num(totals.check_rows)}</b> 行 / {num(totals.check_hours, 1)}h → 人效{" "}
-            <b>{totals.check_rate === null ? "-" : num(totals.check_rate, 1)}</b> 行/小时
-            {mode === "archive" &&
-              (data?.archived_at ? ` · 已存档 ${data.archived_at}（${data.archived_rows} 条）` : " · 该作业日期还没有存档")}
-            {" · "}间隔阈值 {data?.gap_minutes || 30} 分 · 休息 {data?.break_count || 0} 段
-          </div>
+        <div className="small muted" style={{ marginBottom: 12 }}>
+          作业日期 <b>{data?.date}</b> · 拣货 {num(totals.pick_hours, 2)}h / 复核 {num(totals.check_hours, 2)}h
+          {" · "}间隔阈值 {data?.gap_minutes || 30} 分 · 休息 {data?.break_count || 0} 段
+          {mode === "archive" &&
+            (data?.archived_at
+              ? ` · 已存档 ${data.archived_at}（${data.archived_rows} 条）`
+              : " · 该作业日期还没有存档")}
         </div>
       )}
 

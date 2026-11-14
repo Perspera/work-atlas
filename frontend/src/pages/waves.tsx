@@ -6,7 +6,7 @@ import { api, ApiError } from "../lib/api";
 import { num, pct } from "../lib/format";
 import { useBizDate } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel } from "../components/ui";
 
 interface WaveRow {
   id: number;
@@ -146,6 +146,15 @@ export default function WavesPage() {
     }
   };
 
+  const waveLines = waves.data ? waves.data.rows.reduce((sum, row) => sum + row.lines, 0) : 0;
+  const waveAmount = waves.data
+    ? waves.data.rows.reduce((sum, row) => sum + (row.amount || 0), 0)
+    : 0;
+  const pendingCount = waves.data ? waves.data.rows.filter((row) => row.pending).length : 0;
+  const candidateCount = candidates.data
+    ? candidates.data.rows.filter((row) => row.order_date === date).length
+    : null;
+
   return (
     <>
       <PageHead
@@ -155,6 +164,24 @@ export default function WavesPage() {
         {canCreate && <button className="btn btn-primary" onClick={() => setAddOpen(true)}>新增波次</button>}
         <button className="btn" onClick={() => void waves.refetch()}>刷新</button>
       </PageHead>
+
+      {waves.data && (
+        <KpiBand cols={4}>
+          <Kpi label="已登记波次" value={num(waves.data.rows.length)} unit="个"
+            sub={`业务日 ${date}`} />
+          <Kpi label="合计行数" value={num(waveLines)} unit="行"
+            sub={`待数据 ${num(pendingCount)} 个波次`} />
+          <Kpi label="合计金额" value={num(waveAmount, 2)} unit="万元" sub="含税" />
+          <Kpi label="待组波" value={candidateCount === null ? "—" : num(candidateCount)} unit={candidateCount === null ? undefined : "个"}
+            sub={
+              candidateCount === null
+                ? "点「显示候选波次」加载"
+                : candidateCount > 0
+                  ? "点「显示候选波次」登记"
+                  : "当天全部已组波"
+            } />
+        </KpiBand>
+      )}
 
       {canCreate && (
         <div className="panel" style={{ marginBottom: 14 }}>
@@ -224,6 +251,8 @@ export default function WavesPage() {
         </div>
       )}
 
+
+
       <Panel
         title="已登记波次"
         sub={
@@ -255,7 +284,7 @@ export default function WavesPage() {
               <tbody>
                 {waves.data.rows.length === 0 && (
                   <tr>
-                    <td colSpan={8}><Empty text="当天还没有登记波次" /></td>
+                    <td colSpan={8} className="empty-cell"><Empty text="当天还没有登记波次" /></td>
                   </tr>
                 )}
                 {waves.data.rows.map((row) => (

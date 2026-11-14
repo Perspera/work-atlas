@@ -5,8 +5,7 @@ import { api } from "../lib/api";
 import { pct } from "../lib/format";
 import { useBizDate } from "../lib/hooks";
 import { useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
-import { KpiCard } from "../components/charts";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel } from "../components/ui";
 
 interface AlertRow {
   id: number;
@@ -124,11 +123,14 @@ export default function AlertsPage() {
         <button className="btn" onClick={refresh}>刷新</button>
       </PageHead>
 
-      <div className="kpi-row" style={{ marginBottom: 14 }}>
-        <KpiCard label="未读消息" value={routes.data?.unread ?? messages.data?.unread ?? 0} unit="条" sub="点右上铃铛查看明细" />
-        <KpiCard label="超时线路" value={overdue} unit="条" sub="已完成复核的不计入" />
-        <KpiCard label="临近截止" value={soon} unit="条" sub={`距截止 ≤ ${routes.data?.lead_minutes ?? 30} 分钟`} />
-      </div>
+      <KpiBand cols={3}>
+        <Kpi label="未读预警" value={routes.data?.unread ?? messages.data?.unread ?? 0} unit="条"
+          sub={(routes.data?.unread ?? messages.data?.unread ?? 0) > 0 ? "点右上铃铛查看明细" : "全部已读"} />
+        <Kpi label="超时线路" value={overdue} unit="条"
+          sub={overdue > 0 ? "已完成复核的不计入" : "截止时间前全部完成"} warn={overdue > 0} />
+        <Kpi label="监控线路" value={routeRows.length} unit="条"
+          sub={`临近截止 ${soon} 条 · 距截止 ≤ ${routes.data?.lead_minutes ?? 30} 分钟`} />
+      </KpiBand>
 
       <Panel title="我的预警消息" sub={messages.data ? `未读 ${messages.data.unread} 条` : undefined} flush>
         {messages.isLoading && <Loading />}
@@ -184,7 +186,7 @@ export default function AlertsPage() {
                     <th>负责人</th>
                     <th className="num">行数</th>
                     <th className="num">已复核</th>
-                    <th>完成率</th>
+                    <th className="num">完成率</th>
                     <th>状态</th>
                     <th>操作</th>
                   </tr>
@@ -201,7 +203,7 @@ export default function AlertsPage() {
                         <td>{names}</td>
                         <td className="num">{row.lines}</td>
                         <td className="num">{row.checked}</td>
-                        <td>{row.rate === null || row.rate === undefined ? "-" : pct(row.rate)}</td>
+                        <td className="num">{row.rate === null || row.rate === undefined ? "-" : pct(row.rate)}</td>
                         <td>{stateInfo.kind ? <Badge kind={stateInfo.kind}>{stateInfo.label}</Badge> : stateInfo.label}</td>
                         <td>
                           <button className="btn btn-sm btn-ghost" onClick={() => openEditor(row, routes.data!.users)}>

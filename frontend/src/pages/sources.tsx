@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, download } from "../lib/api";
 import { num } from "../lib/format";
 import { hasPerm, useApp } from "../lib/store";
-import { Badge, Empty, Loading, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, PageHead, Panel } from "../components/ui";
 import WmsPanel from "../features/wms-download";
 import SourceArchives from "../features/source-archives";
 
@@ -150,6 +150,20 @@ export default function SourcesPage() {
 
       {data && (
         <>
+          <KpiBand cols={4}>
+            <Kpi label="已导入文件" value={num(data.file_total)} unit="个"
+              sub={`本页 ${num(data.files.length)} 个 · 每 ${num(data.scan_sec)} 秒自动扫描`} />
+            <Kpi label="未映射经销商" value={num(data.unmapped_count)} unit="行"
+              warn={data.unmapped_count > 0}
+              sub={data.unmapped_count > 0 ? "需要人工补映射" : "全部已映射"} />
+            <Kpi label="扫描间隔" value={num(Math.round(data.scan_sec / 60))} unit="分钟"
+              sub={data.last_scan ? `上次扫描 ${data.last_scan}` : "尚未扫描"} />
+            <Kpi label="最近扫描"
+              value={data.last_scan_error ? "失败" : "正常"}
+              warn={Boolean(data.last_scan_error)}
+              sub={data.last_scan_error || (range ? `数据覆盖 ${range.min} ~ ${range.max}（${range.days} 天）` : "—")} />
+          </KpiBand>
+
           <div className="grid cols-2" style={{ marginBottom: 14 }}>
             <Panel title="数据源目录">
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -228,7 +242,7 @@ export default function SourcesPage() {
                 <tbody>
                   {data.files.length === 0 && (
                     <tr>
-                      <td colSpan={8}>
+                      <td colSpan={8} className="empty-cell">
                         <Empty text="还没有导入任何文件" />
                       </td>
                     </tr>

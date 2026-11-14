@@ -6,7 +6,7 @@ import { api, download } from "../lib/api";
 import { num } from "../lib/format";
 import { useBizDate, useMeta } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel, Seg } from "../components/ui";
 
 interface OrderGroupRow {
   seq: number;
@@ -263,19 +263,26 @@ export default function OrdersPage() {
         </button>
       </PageHead>
 
+      {data && (
+        <KpiBand cols={3}>
+          <Kpi label="订单组" value={num(data.summary.groups)} unit="组"
+            sub={filters.mode === "archive" ? "存档快照" : `业务日 ${date}`} />
+          <Kpi label="行数" value={num(data.summary.lines)} unit="行" sub="已登记口径" />
+          <Kpi label="金额" value={data.summary.amount === null ? "—" : num(data.summary.amount / 10000, 2)} unit="万元"
+            sub="含税" />
+        </KpiBand>
+      )}
+
       <div className="panel" style={{ marginBottom: 12 }}>
         <div className="panel-body" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div className="toolbar">
-            {(["live", "archive"] as const).map((mode) => (
-              <button
-                key={mode}
-                className={`btn btn-sm${filters.mode === mode ? " btn-primary" : ""}`}
-                onClick={() => setFilters((prev) => ({ ...prev, mode, page: 1 }))}
-              >
-                {mode === "live" ? "实时登记" : "存档快照"}
-              </button>
-            ))}
-          </div>
+          <Seg
+            items={[
+              { key: "live", label: "实时登记" },
+              { key: "archive", label: "存档快照" },
+            ]}
+            value={filters.mode}
+            onChange={(mode) => setFilters((prev) => ({ ...prev, mode, page: 1 }))}
+          />
           <select
             className="select"
             style={{ height: 30, minWidth: 170 }}
@@ -352,7 +359,7 @@ export default function OrdersPage() {
                 <tbody>
                   {data.rows.length === 0 && (
                     <tr>
-                      <td colSpan={15}>
+                      <td colSpan={15} className="empty-cell">
                         <Empty
                           text={
                             filters.mode === "archive"

@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../lib/api";
+import { num } from "../lib/format";
 import { hasPerm, useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel } from "../components/ui";
 import type { Layout } from "../features/dashboard";
 
 interface BoardPage {
@@ -242,6 +243,17 @@ export default function DashboardPage() {
       {boards.error && <Empty text={(boards.error as Error).message} />}
       {data && (
         <>
+          <KpiBand cols={4}>
+            <Kpi label="导航页看板" value={num(data.pages.length)} unit="个"
+              sub={data.pages.map((item) => item.name).join(" / ") || "—"} />
+            <Kpi label="固定分析页" value={num(1)} unit="个" sub="单量分析（今日 / 本周 / 本月 / 本季度）" />
+            <Kpi label="专题看板" value={num(data.dashboards.length)} unit="个"
+              sub={`私有 ${num(data.dashboards.filter((item) => !item.is_public).length)} · 共享 ${num(data.dashboards.filter((item) => item.is_public).length)}`} />
+            <Kpi label="孤儿看板" value={num(data.orphans.length)} unit="个"
+              warn={data.orphans.length > 0}
+              sub={data.orphans.length > 0 ? "所属账号已删除，建议清理" : "无"} />
+          </KpiBand>
+
           <Panel title="导航页看板" sub="编辑后发布，所有人打开该页就是新样式">
             <div className="hub-grid">{data.pages.map(card)}</div>
           </Panel>

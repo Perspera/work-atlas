@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, download } from "../lib/api";
 import { num } from "../lib/format";
 import { hasPerm, useApp } from "../lib/store";
-import { Empty, Loading, PageHead, Panel } from "../components/ui";
+import { Empty, Kpi, KpiBand, Loading, PageHead, Panel } from "../components/ui";
 
 interface OutboundDate {
   biz_date: string;
@@ -115,6 +115,15 @@ function ArchiveView({ date, meta }: { date: string; meta: OutboundMeta }) {
     queryFn: () =>
       api<OutboundQueryData>(`/api/outbound-archive/query?${buildQuery(date, applied, page)}`),
   });
+
+  // 数值列：表头与数据一起右对齐，否则数字右对齐、表头左对齐会错位
+  const numericCols = new Set<number>(
+    data
+      ? data.meta.headers
+          .map((_header, index) => (data.rows.some((row) => typeof row[index] === "number") ? index : -1))
+          .filter((index) => index >= 0)
+      : [],
+  );
 
   const updateCond = (index: number, patch: Partial<Condition>) => {
     setDraft((prev) => ({
@@ -246,7 +255,7 @@ function ArchiveView({ date, meta }: { date: string; meta: OutboundMeta }) {
                   <tr>
                     <th>#</th>
                     {data.meta.headers.map((header, index) => (
-                      <th key={index}>{header}</th>
+                      <th key={index} className={numericCols.has(index) ? "num" : undefined}>{header}</th>
                     ))}
                   </tr>
                 </thead>
@@ -346,6 +355,18 @@ export default function OutboundPage() {
           </button>
         )}
       </PageHead>
+
+      {archive && (
+        <KpiBand cols={4}>
+          <Kpi label="归档行数" value={num(archive.rows)} unit="行"
+            sub={`业务日 ${archive.biz_date || date}`} />
+          <Kpi label="文件大小" value={num((archive.stored_bytes || 0) / 1024 / 1024, 2)} unit="MB"
+            sub={`${num(archive.sheets.reduce((sum, sheet) => sum + sheet.rows, 0))} 行 · ${num(archive.sheets.length)} 个工作表`} />
+          <Kpi label="字段数" value={num(archive.headers.length)} unit="列" sub="横向滚动 · 前 3 列冻结" />
+          <Kpi label="归档日期" value={num(dates.length)} unit="天"
+            sub={dates[0]?.biz_date ? `最新 ${dates[0].biz_date}` : "—"} />
+        </KpiBand>
+      )}
 
       <Panel
         title="归档数据"

@@ -2,10 +2,10 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api, download } from "../lib/api";
-import { num } from "../lib/format";
+import { num, pct } from "../lib/format";
 import { useBizDate, useMeta } from "../lib/hooks";
 import { hasPerm, useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel, Seg } from "../components/ui";
 
 interface BatteryRow {
   order_date: string;
@@ -218,12 +218,14 @@ export default function BatteryPage() {
               }} />
           </label>
         )}
-        {(["live", "archive"] as const).map((item) => (
-          <button key={item} className={`btn btn-sm${mode === item ? " btn-primary" : ""}`}
-            onClick={() => { setMode(item); setSelected([]); setFilters((prev) => ({ ...prev, page: 1 })); }}>
-            {item === "live" ? "实时登记" : "存档快照"}
-          </button>
-        ))}
+        <Seg
+          items={[
+            { key: "live", label: "实时登记" },
+            { key: "archive", label: "存档快照" },
+          ]}
+          value={mode}
+          onChange={(item) => { setMode(item); setSelected([]); setFilters((prev) => ({ ...prev, page: 1 })); }}
+        />
         {canManage && <button className="btn" onClick={archive}>存档今日</button>}
         <button className="btn" onClick={refresh}>刷新</button>
         <button className="btn" onClick={() => download(
@@ -234,6 +236,39 @@ export default function BatteryPage() {
           },
         )}>导出 CSV</button>
       </PageHead>
+
+      {main.data && (
+        <KpiBand cols={4}>
+          <Kpi
+            label="当日已登记"
+            value={num(mode === "live" ? todayRows.data?.rows.length ?? 0 : main.data.summary.qty)}
+            unit="条"
+            sub={
+              (mode === "live" ? todayRows.data?.summary.amount : main.data.summary.amount) === null
+                ? "金额 —"
+                : `金额 ${num(((mode === "live" ? todayRows.data?.summary.amount : main.data.summary.amount) || 0) / 10000, 2)} 万元`
+            }
+          />
+          <Kpi
+            label="待登记候选"
+            value={num(main.data.total)}
+            unit="组"
+            sub={`合计 ${num(main.data.summary.lines)} 行 / ${num((main.data.summary.amount || 0) / 10000, 2)} 万元`}
+          />
+          <Kpi
+            label="已拣货"
+            value={num(main.data.summary.picked)}
+            unit="行"
+            sub={main.data.summary.lines > 0 ? pct(main.data.summary.picked / main.data.summary.lines) : "—"}
+          />
+          <Kpi
+            label="已复核"
+            value={num(main.data.summary.checked)}
+            unit="行"
+            sub={main.data.summary.lines > 0 ? pct(main.data.summary.checked / main.data.summary.lines) : "—"}
+          />
+        </KpiBand>
+      )}
 
       <div className="panel" style={{ marginBottom: 14 }}>
         <div className="panel-head">
@@ -308,7 +343,7 @@ export default function BatteryPage() {
                 <tbody>
                   {todayRows.data.rows.length === 0 && (
                     <tr>
-                      <td colSpan={18}><Empty text="今天还没有已登记的动力电池明细" /></td>
+                      <td colSpan={18} className="empty-cell"><Empty text="今天还没有已登记的动力电池明细" /></td>
                     </tr>
                   )}
                   {todayRows.data.rows.map((row, index) => (
@@ -358,7 +393,7 @@ export default function BatteryPage() {
         {main.data && (
           <>
             <div className="table-wrap" style={{ maxHeight: 560 }}>
-              <table className="tbl" style={{ minWidth: mode === "archive" ? 1500 : 1560 }}>
+              <table className="tbl" style={{ minWidth: 1800 }}>
                 <thead>
                   <tr>
                     {mode === "live" ? (
@@ -381,7 +416,7 @@ export default function BatteryPage() {
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={20}><Empty text={mode === "archive" ? "没有电池存档" : "没有动力电池候选"} /></td>
+                      <td colSpan={20} className="empty-cell"><Empty text={mode === "archive" ? "没有电池存档" : "没有动力电池候选"} /></td>
                     </tr>
                   )}
                   {rows.map((row, index) => {
@@ -424,9 +459,9 @@ export default function BatteryPage() {
                         <td>{row.freight_free || "-"}</td>
                         <td>{row.region || "-"}</td>
                         <td>{row.carrier || "-"}</td>
-                        <td>{row.dest_city || "-"}</td>
-                        <td className="small">
-                          {row.address_matched ? row.address : <Badge kind="warn">未匹配地址</Badge>}
+                        <td className="ell" title={row.dest_city || ""}><span>{row.dest_city || "-"}</span></td>
+                        <td className="small ell" title={row.address || ""}>
+                          {row.address_matched ? <span>{row.address}</span> : <Badge kind="warn">未匹配地址</Badge>}
                         </td>
                         {mode === "live" && (
                           <td className="nowrap">

@@ -5,14 +5,27 @@ import { api } from "../lib/api";
 import { num, pct } from "../lib/format";
 import { useBizDate } from "../lib/hooks";
 import type { VolumeBreakdown, VolumePeriodData } from "../lib/types";
-import { Loading, PageHead, Panel } from "../components/ui";
+import { Kpi, KpiBand, Loading, PageHead, Panel, Seg } from "../components/ui";
 
-const PERIODS = [
+const PERIODS: { key: string; label: string }[] = [
   { key: "today", label: "今日" },
   { key: "week", label: "本周" },
   { key: "month", label: "本月" },
   { key: "quarter", label: "本季度" },
 ];
+
+function compareSub(current: number | null | undefined, prev: number | null | undefined) {
+  if (current === null || current === undefined || !prev) return "较上一周期 —";
+  const delta = (current - prev) / prev;
+  return (
+    <>
+      较上一周期{" "}
+      <span className={delta >= 0 ? "up" : "down"}>
+        {delta >= 0 ? "▲" : "▼"} {pct(Math.abs(delta))}
+      </span>
+    </>
+  );
+}
 
 function changeText(current: number, before: number) {
   if (!before) return "-";
@@ -63,37 +76,6 @@ function BreakdownTable({ rows }: { rows: VolumeBreakdown[] }) {
   );
 }
 
-function CompareCard({
-  label,
-  value,
-  unit,
-  prev,
-  yoy,
-  digits,
-}: {
-  label: string;
-  value: number | null;
-  unit: string;
-  prev?: number | null;
-  yoy?: number | null;
-  digits?: number;
-}) {
-  const show = (target?: number | null) =>
-    target === null || target === undefined ? "-" : num(target, digits || 0);
-  return (
-    <div className="panel">
-      <div className="panel-body">
-        <div className="kpi-label">{label}</div>
-        <div className="kpi-value">
-          {show(value)}
-          <span className="kpi-unit">{unit}</span>
-        </div>
-        <div className="kpi-sub">环比 {show(prev)} · 同比 {show(yoy)}</div>
-      </div>
-    </div>
-  );
-}
-
 export default function VolumePage() {
   const date = useBizDate();
   const [period, setPeriod] = useState("today");
@@ -116,67 +98,33 @@ export default function VolumePage() {
 
   return (
     <>
-      <PageHead title="单量分析" sub="按发运订单日期统计；支持今日、本周、本月、本季度及环比/同比" />
-      <div className="panel" style={{ marginBottom: 14 }}>
-        <div className="panel-body" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div className="toolbar">
-            {PERIODS.map((item) => (
-              <button
-                key={item.key}
-                className={`btn btn-sm${period === item.key ? " btn-primary" : ""}`}
-                onClick={() => setPeriod(item.key)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          {data && (
-            <span className="small muted">
-              {data.range.start} ~ {data.range.end}
-            </span>
-          )}
-          <span className="small muted">对比：环比=上一周期，同比=去年同期</span>
-        </div>
-      </div>
+      <PageHead
+        title="单量分析"
+        sub={
+          data
+            ? `按发运订单日期统计 · 本期 ${data.range.start} ~ ${data.range.end} · 对比期 ${data.range.prev_start}`
+            : "按发运订单日期统计；支持今日、本周、本月、本季度及环比/同比"
+        }
+      >
+        <Seg items={PERIODS} value={period} onChange={setPeriod} />
+      </PageHead>
 
       {isLoading && <Loading />}
       {error && <div className="widget-error">{(error as Error).message}</div>}
 
       {data && (
         <>
-          <div className="grid cols-4" style={{ marginBottom: 14 }}>
-            <CompareCard
-              label="本期行数"
-              value={data.totals.lines}
-              unit="行"
-              prev={data.prev.lines}
-              yoy={data.yoy.lines}
-            />
-            <CompareCard
-              label="本期金额"
-              value={data.totals.amount}
-              unit="万元"
-              digits={2}
-              prev={data.prev.amount}
-              yoy={data.yoy.amount}
-            />
-            <CompareCard
-              label="订单组数"
-              value={data.totals.groups}
-              unit="组"
-              prev={data.prev.groups}
-              yoy={data.yoy.groups}
-            />
-            <div className="panel">
-              <div className="panel-body">
-                <div className="small muted">当前周期</div>
-                <div style={{ fontSize: 22, fontWeight: 700, margin: "6px 0" }}>
-                  {PERIODS.find((item) => item.key === period)?.label}
-                </div>
-                <div className="small muted">对比上一周期 / 去年同期</div>
-              </div>
-            </div>
-          </div>
+          <KpiBand cols={4}>
+            <Kpi label="本期行数" value={num(data.totals.lines)} unit="行"
+              sub={compareSub(data.totals.lines, data.prev.lines)} />
+            <Kpi label="订单组" value={num(data.totals.groups)} unit="组"
+              sub={compareSub(data.totals.groups, data.prev.groups)} />
+            <Kpi label="金额" value={data.totals.amount === null ? "-" : num(data.totals.amount, 2)} unit="万元"
+              sub={compareSub(data.totals.amount, data.prev.amount)} />
+            <Kpi label="同比" value={data.yoy.lines ? num(data.yoy.lines) : "—"}
+              unit={data.yoy.lines ? "行" : undefined}
+              sub={data.yoy.lines ? compareSub(data.totals.lines, data.yoy.lines) : "去年同期无数据"} />
+          </KpiBand>
 
           <div className="grid cols-2" style={{ marginBottom: 14 }}>
             <Panel title="线路"><BreakdownTable rows={data.breakdowns.route || []} /></Panel>

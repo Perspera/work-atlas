@@ -68,6 +68,63 @@ export function Badge({ kind, children }: { kind?: string; children: ReactNode }
   return <span className={`badge${kind ? ` ${kind}` : ""}`}>{children}</span>;
 }
 
+/** KPI 数字带：与样卡 .kpis 一致，默认 6 列，可指定 3/4 列。 */
+export function KpiBand({ cols, children }: { cols?: 3 | 4 | 6; children: ReactNode }) {
+  return <div className={`kpis${cols && cols !== 6 ? ` k${cols}` : ""}`} style={{ marginBottom: 14 }}>{children}</div>;
+}
+
+/** 单张 KPI 卡：标题 / 数字+单位 / 副行，内容垂直居中。 */
+export function Kpi({
+  label,
+  value,
+  unit,
+  sub,
+  warn,
+}: {
+  label: string;
+  value: ReactNode;
+  unit?: string;
+  sub?: ReactNode;
+  warn?: boolean;
+}) {
+  return (
+    <div className="kpi">
+      <div className="kpi-label">{label}</div>
+      <div className={`kpi-value${warn ? " warn" : ""}`}>
+        {value}
+        {unit && <span className="kpi-unit">{unit}</span>}
+      </div>
+      {sub !== undefined && <div className="kpi-sub">{sub}</div>}
+    </div>
+  );
+}
+
+/** 分段控件：等价于样卡的 .seg（模式切换 / 周期切换 / Tab）。 */
+export function Seg<T extends string>({
+  items,
+  value,
+  onChange,
+}: {
+  items: { key: T; label: string }[];
+  value: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div className="seg">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={value === item.key ? "on" : ""}
+          onClick={() => onChange(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Modal({
   title,
   onClose,

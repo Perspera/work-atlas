@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { num } from "../lib/format";
 import { useApp } from "../lib/store";
-import { Badge, Empty, Loading, Modal, PageHead, Panel } from "../components/ui";
+import { Badge, Empty, Kpi, KpiBand, Loading, Modal, PageHead, Panel, Seg } from "../components/ui";
 
 interface GroupLite {
   id: number;
@@ -52,6 +53,7 @@ interface PermissionsData {
   permissions: PermDef[];
   groups: GroupRow[];
   users: PermUser[];
+  scope_dims: Record<string, string>;
 }
 
 type PermValue = "" | "allow" | "deny";
@@ -689,7 +691,7 @@ export default function AdminPage() {
             <tbody>
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={6}><Empty text="暂无数据" /></td>
+                  <td colSpan={6} className="empty-cell"><Empty text="暂无数据" /></td>
                 </tr>
               )}
               {users.map((user) => (
@@ -748,7 +750,7 @@ export default function AdminPage() {
             <tbody>
               {groups.length === 0 && (
                 <tr>
-                  <td colSpan={5}><Empty text="暂无数据" /></td>
+                  <td colSpan={5} className="empty-cell"><Empty text="暂无数据" /></td>
                 </tr>
               )}
               {groups.map((group) => (
@@ -798,7 +800,7 @@ export default function AdminPage() {
               <tbody>
                 {groups.length === 0 && (
                   <tr>
-                    <td colSpan={5}><Empty text="还没有用户组" /></td>
+                    <td colSpan={5} className="empty-cell"><Empty text="还没有用户组" /></td>
                   </tr>
                 )}
                 {groups.map((group) => (
@@ -860,19 +862,22 @@ export default function AdminPage() {
 
   return (
     <>
-      <PageHead title="用户与权限" sub="逐项授权：用户组 × 页面/组件/动作/字段 × 数据范围" />
+      <PageHead title="用户与权限" sub="逐项授权：用户组 × 页面/组件/动作/字段 × 数据范围">
+        <Seg items={TABS.map((item) => ({ key: item.key, label: item.label }))} value={tab} onChange={setTab} />
+      </PageHead>
 
-      <div className="toolbar" style={{ marginBottom: 14 }}>
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            className={`btn${tab === item.key ? " btn-primary" : ""}`}
-            onClick={() => setTab(item.key)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {(permsQuery.data || usersQuery.data || groupsQuery.data) && (
+        <KpiBand cols={4}>
+          <Kpi label="用户" value={num(users.length)} unit="个"
+            sub={`启用 ${num(users.filter((item) => item.status === "active").length)} · 待改密 ${num(users.filter((item) => item.must_change_pwd).length)}`} />
+          <Kpi label="用户组" value={num(groups.length)} unit="个"
+            sub={groups.map((item) => item.name).join(" / ") || "—"} />
+          <Kpi label="权限项" value={num(perms.length)} unit="项"
+            sub={`页面 ${num(perms.filter((item) => item.group === "页面").length)} / 动作 ${num(perms.filter((item) => item.group === "动作").length)} / 字段 ${num(perms.filter((item) => item.group === "字段").length)}`} />
+          <Kpi label="数据范围" value={num(Object.keys(permsQuery.data?.scope_dims || {}).length)} unit="维"
+            sub={Object.values(permsQuery.data?.scope_dims || {}).join(" / ") || "—"} />
+        </KpiBand>
+      )}
 
       {tab === "users" && renderUsers()}
       {tab === "groups" && renderGroups()}
