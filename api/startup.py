@@ -42,15 +42,15 @@ def ensure_personal_page_layouts(conn):
         )
 
 def ensure_chart_colors(conn):
-    """一次性给导航页的单系列柱/折线图补默认彩色（只补没配过色的组件）。
+    """一次性给单系列柱/折线图补默认彩色（只补没配过色的组件）。
 
-    多系列图表、饼图/漏斗仍走前端多色盘；手动配过色的组件不动。
+    覆盖导航页与自定义专题看板；多系列图表、饼图/漏斗仍走前端多色盘，手动配过色的不动。
     """
-    if db.get_meta(conn, "chart_colors_v1") == "1":
+    if db.get_meta(conn, "chart_colors_v2") == "1":
         return
     updated = 0
     for row in conn.execute(
-        "SELECT id, page_key, layout_json FROM dashboards WHERE page_key IS NOT NULL"
+        "SELECT id, page_key, layout_json FROM dashboards"
     ).fetchall():
         try:
             layout = json.loads(row["layout_json"] or "{}")
