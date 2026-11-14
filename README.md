@@ -396,7 +396,7 @@ WMS 的 SSO 登录页在**内网**（`10.8.255.70:18080`），阿里云服务器
 
 **常用维护**
 - 改端口/数据目录：编辑 `config.json` 后重启。
-- **开发 / 生产数据目录**：`config.json` 的 `profiles` 里定义两套配置——`dev` 用 `Z:\单据登记\测试`，`prod` 用 `/opt/work-atlas/share`。默认走 `dev`；设置环境变量 `WORK_ATLAS_ENV=prod` 启动即切到生产（线上 systemd 已配置该变量）。把 WMS/TMS 导出文件放进对应目录即会被扫描。
+- **开发 / 生产数据目录**：`config.json` 的 `profiles` 里定义两套配置——`dev` 用 `Z:\单据登记\测试`，`prod` 用 `/opt/work-atlas/share`。默认走 `dev`；设置环境变量 `WORK_ATLAS_ENV=prod` 启动即切到生产（线上 systemd 已配置该变量）。把 WMS/TMS 导出文件放进对应目录即会被扫描。发布与数据更新的完整流程见第八节。
 - 看日志：`data/server.log`。
 - 手动重扫：页面「数据源 → 立即扫描」，或命令行 `python ingest.py --scan`。
 - 复算校验：`python ingest.py --check`（打印当日单量/进度数字）。
@@ -406,7 +406,70 @@ WMS 的 SSO 登录页在**内网**（`10.8.255.70:18080`），阿里云服务器
 
 ---
 
-## 八、常见问题
+## 八、线上部署与数据更新
+
+线上入口 **http://8.163.57.96:18081**（nginx 反代到本机 `127.0.0.1:18082`，systemd 服务名 `work-atlas`，以 `WORK_ATLAS_ENV=prod` 启动）。
+
+### 1. 发布代码（不动业务数据）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1          # 默认保留最近 5 个版本
+powershell -ExecutionPolicy Bypass -File deploy\deploy.ps1 -Keep 3  # 改保留数量
+```
+
+脚本做的事：
+
+1. 本地 `npm run build`（`tsc --noEmit` + `vite build`）构建前端到 `dist/`
+2. 打包整个仓库（排除 `.git`、`data`、`frontend/node_modules`、下载机日志/密钥等）
+3. `scp` 上传 → 解包到 `/opt/work-atlas/releases/<yyyyMMdd-HHmmss>/`
+4. 缺 `openpyxl` 时安装运行依赖
+5. 把该版本的 `data` 软链到 `/opt/work-atlas/shared/data`，切换 `current` 软链并重启服务
+6. 30 次健康检查（`/api/health`），失败自动回滚到上一版本
+
+- **发布不覆盖数据**：`releases/` 只放代码，各版本里的 `data` 都指向 `shared/data`
+- 回滚：`ssh root@8.163.57.96 'ln -sfn /opt/work-atlas/releases/<上一版本> /opt/work-atlas/current && systemctl restart work-atlas'`
+- `deploy/deploy.ps1` 必须保持 UTF-8 with BOM；`run_wms_download.bat` 必须保持 CRLF
+
+### 2. 更新数据（三种方式，结果一样）
+
+线上只扫描**一个**目录：`/opt/work-atlas/share`（`config.json` 的 `prod.source_dirs`），每 60 秒扫一次；同一天导出重新覆盖会就地更新进度，不重复累计。
+
+| 方式 | 在哪操作 | 生效时间 | 适用 |
+|---|---|---|---|
+| 自动（推荐） | 下载机 Windows 任务计划 `WMS-Daily-Download` | 08:00–21:00 每 10 分钟 | 日常 |
+| 手动补传 | 下载机「数据源 → WMS 自动下载 → 补传服务器」，或 `node sync_to_server.js` | 立即（上传接口同步入库） | aTrust 掉线后补数、补历史文件 |
+| 直接放文件 | 任意能 SSH 的机器 `scp 文件 root@8.163.57.96:/opt/work-atlas/share/`，再到看板点「立即扫描」 | ≤60 秒 | 临时手工导出 |
+
+自动链路：
+
+```
+下载机（aTrust 已登录）
+  └ Chrome/Puppeteer 从 WMS 导出 xlsx
+     └ POST http://8.163.57.96:18081/api/ingest/upload   （头：X-WMS-Token + X-File-Name）
+        └ 服务器 /opt/work-atlas/share/xxx.xlsx（先写 .part 再原子改名）
+           └ 立即 ingest.scan → source_files 台账 / ship_lines 明细 / 出库归档 → SSE 推送
+              └ 前端看板自动刷新
+```
+
+- 服务器**不能**自己去 WMS 下载：WMS SSO 登录页在内网 `10.8.255.70:18080`，云服务器没有 aTrust
+- 「补传服务器」「启用/更新定时任务」等按钮只能在 **Windows 下载机**上看板操作，线上服务器点会返回 400（原因同上）
+- 上传令牌在「数据源 → WMS 自动下载」面板生成，库里只存 sha256；重置后所有下载机都要换
+- 文件内容与已有文件完全一致时直接返回 `skipped`，不重写、不重扫
+- 看板页面不提供发运表/运输单状态文件的上传入口（只有经销商映射 CSV/XLSX 导入），原始数据只能走上面三条路径
+
+### 3. 确认数据是否更新
+
+```bash
+ssh root@8.163.57.96 "curl -s http://127.0.0.1:18082/api/health"
+ssh root@8.163.57.96 "ls -lt --time-style=+%F\\ %H:%M /opt/work-atlas/share | head"
+ssh root@8.163.57.96 "sqlite3 /opt/work-atlas/shared/data/dashboard.db 'SELECT name,rows,status,imported_at FROM source_files ORDER BY imported_at DESC LIMIT 5;'"
+```
+
+页面侧：「数据源」页看 **上次扫描**、**数据覆盖范围**，以及「文件台账」里当天文件状态是否为 `ok`；「WMS 自动下载」面板看定时任务状态与最近上传时间。
+
+---
+
+## 九、常见问题
 
 **打不开 / 连接被拒**
 1. 确认 `启动看板.bat` 窗口还开着（关掉即停服）；2. 本机先试 `http://127.0.0.1:8787`；3. 端口被占用时改 `config.json` 的 `port`；4. 同事访问不了 → 检查防火墙是否放行 8787（跑一次 `安装开机自启.ps1`）。
@@ -525,7 +588,7 @@ WMS 导出里这几行没填订单组号，系统按 WMS 单号单独成组（�
 
 ---
 
-## 九、已实现 / 未实现
+## 十、已实现 / 未实现
 
 **已实现**：登录、逐项权限（45 个权限点）、数据范围、字段脱敏、审计日志、波次登记 CRUD（含待数据）、订单组台账（13 列 + 编辑/移出/恢复）、每日按日期存档与历史快照、**组件模板库（14 个场景模板）+ 配置向导（数据集说明/默认值/指标分组/数据集筛选/实时预览）**、**ERP 明细筛选修复（回传失败/未回传各自取数、空态区分）**、**看板总台（卡片管理导航页/专题看板 + 自由摆放编辑器/撤销/整理/发布/复制/大屏）**、**大屏轮播（清单/间隔/红条/声音 + 自动分页适配 1080p/768p）**、**KPI 大数字与自适应字号**、**人工作业量（按作业日期、拣货/复核分开、人效=行数÷有效工时（分钟累计+休息扣除）、实时/存档、工时人工校正、作业设置）**、**线路超时预警（截止时间/负责人/站内消息/铃铛/大屏联动）**、**扫描自动归档（订单组/人效，受影响日期覆盖）+ 每日归档查询/导出**、**出库文件归档页（单份当前内容，按表头筛选/日期区间查询、50 条分页、筛选导出）**、**未映射经销商导出与批量导入更新**、**待组波=空波次号明细并可下钻**、**KPI 行数单位与马卡龙/多巴胺组件配色**、**ERP 回传状态统计与失败/未回传明细**、**组件缩放内容自适应**、9 数据集 × 16 维度 × 35 个指标（全部按行/金额/比例，含今日订单量·已组波·待组波的金额与行数）的自定义看板、编辑期间暂停实时刷新、打印单量表、CSV 导出、SSE 实时刷新、自动备份、开机自启、数据源体检、未映射待办。
 

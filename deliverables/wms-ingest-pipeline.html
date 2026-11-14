@@ -4980,7 +4980,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <div class="pulse-dot"></div>
         <h1>WMS 自动下载 → 上传入库 全链路</h1>
       </div>
-      <p class="subtitle">下载机采集 → HTTP 上传 → 服务器落盘即入库</p>
+      <p class="subtitle">下载机采集 → HTTP 上传 → 服务器落盘即入库（附手工补数备用路径）</p>
     </div>
 
 
@@ -4988,9 +4988,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / 图版 04">
-      <svg viewBox="0 0 982 892" data-reader-fit="intrinsic-height" data-layout-contract="readable-v2" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="signal-flow" data-quality-profile="showcase">
+      <svg viewBox="0 0 982 985" data-reader-fit="intrinsic-height" data-layout-contract="readable-v2" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="signal-flow" data-quality-profile="showcase">
         <title id="archify-diagram-title">WMS 自动下载 → 上传入库 全链路</title>
-        <desc id="archify-diagram-description">下载机采集 → HTTP 上传 → 服务器落盘即入库</desc>
+        <desc id="archify-diagram-description">下载机采集 → HTTP 上传 → 服务器落盘即入库（附手工补数备用路径）</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5030,6 +5030,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <rect data-graph-role="structural-frame" data-composition-frame-kind="exception-lane" data-composition-frame-id="lane-4-exception" x="46" y="670" width="914" height="92" rx="8" class="c-security-group" stroke-width="1"/>
         <text x="54" y="686" class="t-security" font-size="10" font-weight="600">EX / 异常 / 跳过</text>
 
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-5" x="40" y="790" width="926" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="812" class="t-dim" font-size="10" font-weight="600">05 / 手工补数 · 备用路径（可选）</text>
+        <text x="946" y="812" class="t-muted" font-size="8" text-anchor="end">结果与自动链路一致</text>
+
         <!-- Phase headers -->
         <line x1="67" y1="35" x2="279" y2="35" class="a-emphasis" stroke-width="1.1"/>
         <rect x="67" y="27" width="212" height="16" rx="4" class="c-mask"/>
@@ -5057,6 +5061,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <path data-edge-from="portal" data-edge-to="offline" data-edge-label="会话失效" data-edge-key="6" data-edge-id="e7" data-composition-routing="workflow-v2-auto" data-edge-role="branch" data-composition-points="245,271;245,473;157,473;157,731;173,731" d="M 245 271 L 245 473 L 157 473 L 157 731 L 173 731" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="upload" data-edge-to="badtoken" data-edge-label="令牌错误" data-edge-key="7" data-edge-id="e8" data-composition-routing="workflow-v2-auto" data-edge-role="error" data-composition-points="733.5999999999999,395;733.5999999999999,535;669.5999999999999,535;669.5999999999999,731;685.5999999999999,731" d="M 733.5999999999999 395 L 733.5999999999999 535 L 669.5999999999999 535 L 669.5999999999999 731 L 685.5999999999999 731" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="ingest" data-edge-to="dup" data-edge-label="字节相同" data-edge-key="8" data-edge-id="e9" data-composition-routing="workflow-v2-auto" data-edge-role="branch" data-composition-points="873.5999999999999,639;873.5999999999999,705" d="M 873.5999999999999 639 L 873.5999999999999 705" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="manual-export" data-edge-to="manual-scp" data-edge-label="本地文件" data-edge-key="9" data-edge-id="e10" data-composition-routing="manual" data-edge-role="branch" data-composition-points="303,857;365,857" d="M 303 857 L 365 857" class="a-default" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="manual-scp" data-edge-to="manual-scan" data-edge-label="落盘" data-edge-key="10" data-edge-id="e11" data-composition-routing="manual" data-edge-role="branch" data-composition-points="515,857;575,857" d="M 515 857 L 575 857" class="a-default" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="manual-scan" data-edge-to="ingest" data-edge-label="同一入库链路" data-edge-key="11" data-edge-id="e12" data-composition-routing="manual" data-edge-role="branch" data-composition-points="655,831;655,613;793.5999999999999,613" d="M 655 831 L 655 613 L 793.5999999999999 613" class="a-default" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arrowhead)"/>
 
         <!-- Nodes -->
         <g id="node-cron" data-node-id="cron" data-node-label="定时任务触发" tabindex="0" role="button" aria-label="聚焦定时任务触发，每 10 分钟, 调度 · Windows 任务计划 › 采集" aria-pressed="false" data-node-kind="external" data-node-sublabel="每 10 分钟" data-node-tag="wscript" data-node-context="调度 · Windows 任务计划 › 采集">
@@ -5181,6 +5188,45 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text data-detail="context" x="873.5999999999999" y="743" class="t-muted" font-size="8" text-anchor="middle">跳过不重扫</text>
         </g>
 
+        <g id="node-manual-export" data-node-id="manual-export" data-node-label="人工导出 xlsx" tabindex="0" role="button" aria-label="聚焦人工导出 xlsx，WMS 页面手工导出, 手工补数 · 备用路径（可选）" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="WMS 页面手工导出" data-node-context="手工补数 · 备用路径（可选）">
+          <title>人工导出 xlsx · WMS 页面手工导出 · 手工补数 · 备用路径（可选）</title>
+          <rect x="163" y="831" width="140" height="52" rx="6" class="c-mask"/>
+          <rect x="163" y="831" width="140" height="52" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(169 837) scale(0.6875)">
+            <rect x="2" y="3" width="12" height="10" rx="2"/>
+            <path d="M2 6.5h12"/>
+            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
+            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="233" y="852" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">人工导出 xlsx</text>
+          <text data-detail="context" x="233" y="869" class="t-muted" font-size="8" text-anchor="middle">WMS 页面手工导出</text>
+        </g>
+
+        <g id="node-manual-scp" data-node-id="manual-scp" data-node-label="scp 传到服务器" tabindex="0" role="button" aria-label="聚焦scp 传到服务器，/opt/work-atlas/share, 手工补数 · 备用路径（可选）" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="/opt/work-atlas/share" data-node-context="手工补数 · 备用路径（可选）">
+          <title>scp 传到服务器 · /opt/work-atlas/share · 手工补数 · 备用路径（可选）</title>
+          <rect x="365" y="831" width="150" height="52" rx="6" class="c-mask"/>
+          <rect x="365" y="831" width="150" height="52" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(371 837) scale(0.6875)">
+            <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
+            <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
+            <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
+            <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="440" y="852" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">scp 传到服务器</text>
+          <text data-detail="context" x="440" y="869" class="t-muted" font-size="8" text-anchor="middle">/opt/work-atlas/share</text>
+        </g>
+
+        <g id="node-manual-scan" data-node-id="manual-scan" data-node-label="自动扫描入库" tabindex="0" role="button" aria-label="聚焦自动扫描入库，≤60 秒 / 立即扫描, 手工补数 · 备用路径（可选）" aria-pressed="false" data-node-kind="backend" data-node-sublabel="≤60 秒 / 立即扫描" data-node-context="手工补数 · 备用路径（可选）">
+          <title>自动扫描入库 · ≤60 秒 / 立即扫描 · 手工补数 · 备用路径（可选）</title>
+          <rect x="575" y="831" width="160" height="52" rx="6" class="c-mask"/>
+          <rect x="575" y="831" width="160" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(581 837) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="655" y="852" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">自动扫描入库</text>
+          <text data-detail="context" x="655" y="869" class="t-muted" font-size="8" text-anchor="middle">≤60 秒 / 立即扫描</text>
+        </g>
+
         <!-- Edge labels -->
         <g data-detail="context" data-edge-from="cron" data-edge-to="portal" data-edge-label="到点执行" data-edge-key="0" data-edge-id="e1">
           <rect x="108.3" y="278" width="48.4" height="14" rx="3" class="c-mask"/>
@@ -5215,37 +5261,49 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <rect x="849.3999999999999" y="662" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="873.5999999999999" y="672" class="t-edge-default" font-size="8" text-anchor="middle">字节相同</text>
         </g>
+        <g data-detail="context" data-edge-from="manual-export" data-edge-to="manual-scp" data-edge-label="本地文件" data-edge-key="9" data-edge-id="e10">
+          <rect x="309.8" y="837" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="334" y="847" class="t-edge-default" font-size="8" text-anchor="middle">本地文件</text>
+        </g>
+        <g data-detail="context" data-edge-from="manual-scp" data-edge-to="manual-scan" data-edge-label="落盘" data-edge-key="10" data-edge-id="e11">
+          <rect x="529.4" y="837" width="31.2" height="14" rx="3" class="c-mask"/>
+          <text x="545" y="847" class="t-edge-default" font-size="8" text-anchor="middle">落盘</text>
+        </g>
+        <g data-detail="context" data-edge-from="manual-scan" data-edge-to="ingest" data-edge-label="同一入库链路" data-edge-key="11" data-edge-id="e12">
+          <rect x="696.3" y="593" width="56" height="14" rx="3" class="c-mask"/>
+          <text x="724.3" y="603" class="t-edge-default" font-size="8" text-anchor="middle">同一入库链路</text>
+        </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="20" y="792" class="t-primary" font-size="12" font-weight="650">图例</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="浏览器页面" data-legend-x="20" data-legend-baseline="812" data-legend-width="87">
-            <rect x="20" y="804" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="42" y="812" class="t-muted" font-size="7.5" font-weight="500">浏览器页面</text>
+          <text x="20" y="920" class="t-primary" font-size="12" font-weight="650">图例</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="浏览器页面" data-legend-x="20" data-legend-baseline="940" data-legend-width="87">
+            <rect x="20" y="932" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="42" y="940" class="t-muted" font-size="7.5" font-weight="500">浏览器页面</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="下载机脚本" data-legend-x="114" data-legend-baseline="812" data-legend-width="87">
-            <rect x="114" y="804" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="136" y="812" class="t-muted" font-size="7.5" font-weight="500">下载机脚本</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="下载机脚本" data-legend-x="114" data-legend-baseline="940" data-legend-width="87">
+            <rect x="114" y="932" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="136" y="940" class="t-muted" font-size="7.5" font-weight="500">下载机脚本</text>
           </g>
-          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="校验 / 鉴权" data-legend-x="208" data-legend-baseline="812" data-legend-width="91">
-            <rect x="208" y="804" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
-            <text x="230" y="812" class="t-muted" font-size="7.5" font-weight="500">校验 / 鉴权</text>
+          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="校验 / 鉴权" data-legend-x="208" data-legend-baseline="940" data-legend-width="91">
+            <rect x="208" y="932" width="14" height="9" rx="2" class="c-security" stroke-width="1"/>
+            <text x="230" y="940" class="t-muted" font-size="7.5" font-weight="500">校验 / 鉴权</text>
           </g>
-          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="传输通道" data-legend-x="306" data-legend-baseline="812" data-legend-width="78">
-            <rect x="306" y="804" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
-            <text x="328" y="812" class="t-muted" font-size="7.5" font-weight="500">传输通道</text>
+          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="传输通道" data-legend-x="306" data-legend-baseline="940" data-legend-width="78">
+            <rect x="306" y="932" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
+            <text x="328" y="940" class="t-muted" font-size="7.5" font-weight="500">传输通道</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="数据落库" data-legend-x="391" data-legend-baseline="812" data-legend-width="78">
-            <rect x="391" y="804" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-            <text x="413" y="812" class="t-muted" font-size="7.5" font-weight="500">数据落库</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="数据落库" data-legend-x="391" data-legend-baseline="940" data-legend-width="78">
+            <rect x="391" y="932" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="413" y="940" class="t-muted" font-size="7.5" font-weight="500">数据落库</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="云服务" data-legend-x="476" data-legend-baseline="812" data-legend-width="70">
-            <rect x="476" y="804" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="498" y="812" class="t-muted" font-size="7.5" font-weight="500">云服务</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="云服务" data-legend-x="476" data-legend-baseline="940" data-legend-width="70">
+            <rect x="476" y="932" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="498" y="940" class="t-muted" font-size="7.5" font-weight="500">云服务</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统 / 调度" data-legend-x="553" data-legend-baseline="812" data-legend-width="109">
-            <rect x="553" y="804" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="575" y="812" class="t-muted" font-size="7.5" font-weight="500">外部系统 / 调度</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统 / 调度" data-legend-x="553" data-legend-baseline="940" data-legend-width="109">
+            <rect x="553" y="932" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="575" y="940" class="t-muted" font-size="7.5" font-weight="500">外部系统 / 调度</text>
           </g>
         </g>
       </svg>
@@ -5457,6 +5515,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <li>schtasks /Run /TN &quot;WMS-Daily-Download&quot;</li>
           <li>node sync_to_server.js --config wms.config.json --dry-run</li>
           <li>python install_task.py（新机器装任务）</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>手工补数（备用）</h3>
+        </div>
+        <ul>
+          <li>aTrust 掉线或临时补数：在 WMS 页面手工导出 xlsx</li>
+          <li>scp 到 /opt/work-atlas/share（不需要上传令牌）</li>
+          <li>等 60 秒自动扫描，或「数据源」页点「立即扫描」</li>
         </ul>
       </div>
     </div>

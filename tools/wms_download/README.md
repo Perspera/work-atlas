@@ -150,6 +150,7 @@ run_wms_download.bat --yesterday
   不需要免密 SSH，只需要能访问 `url`；请求头 `X-WMS-Token` 是看板「WMS 自动下载」面板生成的上传令牌。
 - **`transport: "scp"`**：旧通道，`scp` 上传到 `target:remoteDir` + `ssh stat -c %s` 校验字节数，
   靠看板每 60 秒自动扫描导入；需要本机能免密 `ssh root@8.163.57.96`。
+- 也可以不用本工具：手工把文件 `scp` 到 `/opt/work-atlas/share`，看板 60 秒内自动扫描（不需要上传令牌）；急用就在「数据源」页点「立即扫描」。
 - 上传令牌填在 `secrets.local.json` 的 `dashboardToken`（该文件被 `.gitignore` 忽略，不要提交）：
 
 ```json

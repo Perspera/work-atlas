@@ -1,7 +1,7 @@
 # WMS 自动下载 · 操作手顺
 
-- 日期：2026-11-13
-- 配套流程图：`deliverables/wms-ingest-pipeline.html`（用浏览器打开，可缩放/点节点看细节）
+- 日期：2026-11-13（2026-11-14 增补「线上数据更新」说明）
+- 配套流程图：`deliverables/wms-ingest-pipeline.html`（用浏览器打开，可缩放/点节点看细节；含「手工补数」备用路径泳道）
 - 适用对象：日常看板维护人、下载机（Windows）操作人
 - 性质：**操作手册**。所有命令与日志样例均取自本机 2026-11-13 17:00 / 17:10 两轮真实运行记录
 - 一句话概括：**下载只能在一台装了 aTrust 的 Windows 上做，做完立刻用 HTTP 把文件推给服务器，服务器落盘后马上入库——不需要共享盘、不需要 SSH 密钥、不需要人工搬文件。**
@@ -373,7 +373,24 @@ ssh root@8.163.57.96 \
   'ln -sfn /opt/work-atlas/releases/<上一版本> /opt/work-atlas/current && systemctl restart work-atlas'
 ```
 
-### 4. nginx 配置（改白名单 / 改上传上限时）
+### 4. 线上数据怎么更新（三种方式）
+
+线上只扫**一个**目录 `/opt/work-atlas/share`（`config.json` 的 `prod.source_dirs`），每 60 秒一轮；同一天的导出重新覆盖会**就地更新**，不重复累计。
+
+| 方式 | 在哪操作 | 生效时间 | 适用 |
+|---|---|---|---|
+| 自动（推荐） | 下载机任务计划 `WMS-Daily-Download`（08:00–21:00 每 10 分钟） | 下一轮 | 日常 |
+| 手动补传 | 下载机面板「补传服务器」或 `node sync_to_server.js --config wms.config.json` | 立即（上传接口同步入库） | aTrust 掉线后补数、补历史文件 |
+| 直接放文件 | 任意能 SSH 的机器 `scp 文件 root@8.163.57.96:/opt/work-atlas/share/`，再看板点「立即扫描」 | ≤60 秒 | 临时手工导出 |
+
+补充说明：
+
+- **发版不影响数据**：`deploy/deploy.ps1` 只切 `releases/<时间戳>` 代码目录，各版本里的 `data` 都软链到 `/opt/work-atlas/shared/data`，业务库、归档、备份都保留。
+- **服务器不能自己下载 WMS**：SSO 登录页在内网 `10.8.255.70:18080`，云服务器没有 aTrust；所以「立即下载」「补传服务器」「启用/更新定时任务」只能在下载机的看板上点，线上服务器点会返回 400。
+- **看板页面没有原始数据文件上传入口**（只有经销商映射 CSV/XLSX 导入），发运表/运输单状态文件只能走上面三条路径。
+- 手工放文件后如果不想等扫描，在「数据源」页点「立即扫描」即可；页面上的「上次扫描」「数据覆盖范围」「文件台账状态」可用于确认。
+
+### 5. nginx 配置（改白名单 / 改上传上限时）
 
 ```bash
 vi /etc/nginx/conf.d/work-atlas.conf
@@ -406,6 +423,7 @@ nginx -t && systemctl reload nginx
 巡检：logs\task.log 最后 20 行，两个 exit 都是 0 就正常
 失败：先看是不是 aTrust 掉线（最常见），再看 logs\fail-*.png 是否页面改版
 补数：面板「补传服务器」，或 node sync_to_server.js --config wms.config.json
+线上数据：下载机自动上传 → /opt/work-atlas/share → 60 秒扫描入库；手工 scp 后点「立即扫描」
 换机：拷目录 → npm install → 改 4 个路径 + deliverDir + url → 填 dashboardToken → --headed 跑一次 → install_task.py
 发版：deploy\deploy.ps1（失败自动回滚）
 ```

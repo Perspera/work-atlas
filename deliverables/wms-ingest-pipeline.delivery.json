@@ -7,11 +7,11 @@
   "input": "D:\\newapp\\projects\\work-atlas\\.archify\\workflow-wms-ingest-20261113-170800\\candidate.json",
   "output": "D:\\newapp\\projects\\work-atlas\\deliverables\\wms-ingest-pipeline.html",
   "specification": {
-    "sha256": "7707943eb2172bab81aa8b1a47334ed31cea8ea3d00caf5c5d95066bd1e4b080",
-    "bytes": 5131
+    "sha256": "8a71614b82c7c4c72228dd8c75781eb94a9ecea111a2d2e959418adaa981c038",
+    "bytes": 6426
   },
   "artifact": {
-    "sha256": "578b48c5a2cfd0dafecf58d3cfd5adb41b0482b967a7b2273121dc337e78cde6",
-    "bytes": 765854
+    "sha256": "0cde1fe9ffd31de86b919df1b5ef60de73b778aae347225a53d720242fac83bc",
+    "bytes": 773010
   }
 }
