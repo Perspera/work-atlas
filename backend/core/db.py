@@ -484,6 +484,12 @@ def connect():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA busy_timeout=20000")
+        # 临时表/排序溢写强制走内存，不依赖 OS 临时目录（%TEMP%）。
+        # SQLite 默认 temp_store=0（文件临时表）：GROUP BY / ORDER BY 大结果集时排序器
+        # 会溢写到 %TEMP% 下的临时文件；部署机上 %TEMP% 不可用（受限服务账户、沙箱等）时
+        # SQLite 打不开临时文件就抛 SQLITE_CANTOPEN，表现为 "unable to open database file"，
+        # 让 /api/meta、/api/sources 这类只读查询整站 500。
+        conn.execute("PRAGMA temp_store=MEMORY")
         _local.conn = conn
     return conn
 
