@@ -41,6 +41,43 @@ def ensure_personal_page_layouts(conn):
             (layout, db.now_str(), row["id"]),
         )
 
+def ensure_chart_colors(conn):
+    """一次性给导航页的单系列柱/折线图补默认彩色（只补没配过色的组件）。
+
+    多系列图表、饼图/漏斗仍走前端多色盘；手动配过色的组件不动。
+    """
+    if db.get_meta(conn, "chart_colors_v1") == "1":
+        return
+    updated = 0
+    for row in conn.execute(
+        "SELECT id, page_key, layout_json FROM dashboards WHERE page_key IS NOT NULL"
+    ).fetchall():
+        try:
+            layout = json.loads(row["layout_json"] or "{}")
+        except ValueError:
+            continue
+        changed = False
+        for widget in layout.get("widgets") or []:
+            spec = widget.get("spec") or {}
+            if widget.get("type") not in ("bar", "line"):
+                continue
+            if len(spec.get("metrics") or []) != 1:
+                continue
+            if spec.get("color") or spec.get("color_scheme"):
+                continue
+            spec["color"] = templates.chart_color(widget.get("id") or "")
+            widget["spec"] = spec
+            changed = True
+        if changed:
+            conn.execute(
+                "UPDATE dashboards SET layout_json=?, version=version+1, updated_at=? WHERE id=?",
+                (json.dumps(layout, ensure_ascii=False), db.now_str(), row["id"]),
+            )
+            updated += 1
+    db.set_meta(conn, "chart_colors_v1", "1")
+    if updated:
+        log_line("单系列图表配色补齐：%d 个看板" % updated)
+
 def ensure_erp_detail_filters(conn):
     """一次性修复历史布局里 erp_detail 组件丢失的 filter.erp_status。"""
     if db.get_meta(conn, "erp_filter_repair_v1") == "1":

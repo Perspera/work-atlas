@@ -4,9 +4,21 @@
 布局是 12 列栅格：x 为列（0-11），y 为行（每行 60px），w/h 为跨格数。
 KPI 卡固定 3 行高，图表 5 行高，表格按内容给 5-8 行。
 """
+import zlib
+
+# 单系列柱状/折线图的默认取色：避免所有图表都落在第一种深蓝上，视觉过于单调。
+CHART_PALETTE = ["#2ec4b6", "#e0b100", "#8e44ad", "#ff5d8f", "#ff9f1c", "#0e7490"]
+
+
+def chart_color(widget_id):
+    """按组件 id 稳定取色：同一个图表在各环境、各布局里颜色保持一致。"""
+    return CHART_PALETTE[zlib.crc32(str(widget_id).encode("utf-8")) % len(CHART_PALETTE)]
 
 
 def _w(wid, wtype, title, spec, x, y, w, h):
+    # 单系列图表默认给一个固定颜色；多系列仍走前端默认多色盘。
+    if wtype in ("bar", "line") and len(spec.get("metrics") or []) == 1:
+        spec.setdefault("color", chart_color(wid))
     return {
         "id": wid,
         "type": wtype,

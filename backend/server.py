@@ -49,6 +49,7 @@ from api.boards_init import (
 )
 from api.routes import ROUTES
 from api.startup import (
+    ensure_chart_colors,
     ensure_erp_detail_filters,
     ensure_page_layouts_v6,
     ensure_page_layouts_v7,
@@ -628,6 +629,7 @@ def main(argv):
     ensure_page_layouts_v9(conn)
     ensure_personal_erp_widgets(conn)
     ensure_personal_page_layouts(conn)
+    ensure_chart_colors(conn)
     try:
         ensure_erp_detail_filters(conn)
     except Exception:  # noqa: BLE001
