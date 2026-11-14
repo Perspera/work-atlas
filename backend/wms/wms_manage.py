@@ -40,6 +40,49 @@ class WmsError(Exception):
         self.status = status
 
 
+def _decode_output(raw):
+    """子进程原始字节 → 文本。
+
+    不要用 subprocess 的 text=True：它永远按 locale 解码（中文 Windows 是
+    GBK），而本服务常带 PYTHONIOENCODING=utf-8 运行（PyCharm 的 pydev
+    sitecustomize 会注入），Python 子进程便按 UTF-8 输出。两侧编码不一致时
+    读线程抛 UnicodeDecodeError，又被 Python 3.9 的
+    subprocess._communicate 掩盖成 "IndexError: list index out of range"
+    （2026-11-14 /api/wms-download/schedule 500 的根因）。
+    """
+    if not raw:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    for encoding in ("utf-8", "mbcs"):
+        try:
+            return raw.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def _python_env():
+    """Python 子进程固定按 UTF-8 写 stdout/stderr，父进程才能稳定解码。"""
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    return env
+
+
+def _run_capture(args, timeout=60, cwd=None, env=None):
+    """执行外部命令，返回 (returncode, stdout 文本, stderr 文本)。"""
+    try:
+        proc = subprocess.run(
+            args, cwd=cwd, capture_output=True, timeout=timeout, env=env,
+            creationflags=_PROCESS_FLAGS,
+        )
+    except subprocess.TimeoutExpired:
+        raise WmsError("命令执行超时（%s 秒）：%s" % (timeout, args[0]), 500)
+    except OSError as exc:
+        raise WmsError("无法执行命令 %s：%s" % (args[0], exc), 500)
+    return proc.returncode, _decode_output(proc.stdout), _decode_output(proc.stderr)
+
+
 def _read_json(path, default=None):
     try:
         with open(path, "r", encoding="utf-8") as fh:
@@ -223,16 +266,16 @@ def _task_info():
     if os.name != "nt":
         return {}
     try:
-        proc = subprocess.run(
+        code, out, _err = _run_capture(
             ["powershell", "-NoProfile", "-Command",
              "Get-ScheduledTaskInfo -TaskName '%s' | Select-Object LastRunTime,LastTaskResult,NextRunTime | ConvertTo-Json -Compress" % TASK_NAME],
-            capture_output=True, text=True, timeout=15,
+            timeout=15,
         )
-        if proc.returncode != 0 or not proc.stdout.strip():
+        if code != 0 or not out.strip():
             return {}
-        data = json.loads(proc.stdout.strip())
+        data = json.loads(out.strip())
         return data if isinstance(data, dict) else {}
-    except (OSError, subprocess.SubprocessError, ValueError):
+    except (WmsError, ValueError):
         return {}
 
 
@@ -549,21 +592,23 @@ def apply_schedule(action):
     if action == "install":
         if not os.path.isfile(os.path.join(AUTO_DIR, "install_task.py")):
             raise WmsError("找不到定时任务安装器", 500)
-        proc = subprocess.run(
+        # 子进程按 UTF-8 输出，这里按字节捕获再显式解码，避免 GBK/UTF-8 不一致崩在读线程
+        code, out, err = _run_capture(
             [PYTHON, os.path.join(AUTO_DIR, "install_task.py")],
-            cwd=AUTO_DIR, capture_output=True, text=True, timeout=60,
+            cwd=AUTO_DIR, timeout=60, env=_python_env(),
         )
-        if proc.returncode != 0:
-            raise WmsError("定时任务安装失败：%s" % ((proc.stderr or proc.stdout or "").strip()[:500]), 500)
+        if code != 0:
+            raise WmsError("定时任务安装失败：%s" % ((err or out or "").strip()[:500] or "退出码 %s" % code), 500)
         return task_status(load_config())
     if action == "enable":
-        proc = subprocess.run(["schtasks", "/Change", "/TN", TASK_NAME, "/ENABLE"], capture_output=True, text=True)
+        args = ["schtasks", "/Change", "/TN", TASK_NAME, "/ENABLE"]
     elif action == "disable":
-        proc = subprocess.run(["schtasks", "/Change", "/TN", TASK_NAME, "/DISABLE"], capture_output=True, text=True)
+        args = ["schtasks", "/Change", "/TN", TASK_NAME, "/DISABLE"]
     elif action == "remove":
-        proc = subprocess.run(["schtasks", "/Delete", "/TN", TASK_NAME, "/F"], capture_output=True, text=True)
+        args = ["schtasks", "/Delete", "/TN", TASK_NAME, "/F"]
     else:
         raise WmsError("未知定时任务操作")
-    if proc.returncode != 0:
-        raise WmsError("定时任务操作失败：%s" % ((proc.stderr or proc.stdout or "").strip()[:500]), 500)
+    code, out, err = _run_capture(args, timeout=30)
+    if code != 0:
+        raise WmsError("定时任务操作失败：%s" % ((err or out or "").strip()[:500] or "退出码 %s" % code), 500)
     return task_status(load_config())

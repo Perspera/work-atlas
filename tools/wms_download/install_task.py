@@ -33,6 +33,42 @@ WScript.Quit code\r
 """
 
 
+def ensure_utf8_stdio():
+    """被后端（父进程）以管道调用时固定 UTF-8 输出。
+
+    后端按 UTF-8 解码子进程输出；若本脚本沿用 locale（GBK）写管道，两侧
+    编码不一致会让父进程读线程抛 UnicodeDecodeError 并最终表现为
+    IndexError。手工在控制台运行时 stdout 是 tty，保持系统代码页。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if not stream.isatty():
+                stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
+
+def decode_output(raw):
+    """schtasks 输出是 ANSI/OEM 代码页字节，转成文本后再交给 stdout。"""
+    if not raw:
+        return ""
+    for encoding in ("utf-8", "mbcs"):
+        try:
+            return raw.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def run_schtasks(args):
+    """调用 schtasks 并把输出统一成文本打印，保证本进程 stdout 编码单一。"""
+    proc = subprocess.run(["schtasks"] + list(args), capture_output=True)
+    text = (decode_output(proc.stdout) + decode_output(proc.stderr)).strip()
+    if text:
+        print(text)
+    return proc.returncode
+
+
 def ensure_launcher():
     """任务动作依赖的 VBS 必须存在；缺失时自愈，避免任务结果 1。"""
     if not os.path.isfile(BAT):
@@ -127,9 +163,9 @@ def main():
     parser.add_argument("--task", default=TASK_DEFAULT)
     parser.add_argument("--remove", action="store_true")
     args = parser.parse_args()
+    ensure_utf8_stdio()
     if args.remove:
-        subprocess.call(["schtasks", "/Delete", "/TN", args.task, "/F"])
-        return 0
+        return run_schtasks(["/Delete", "/TN", args.task, "/F"])
     mode, interval, start, end = load_schedule()
     if mode != "interval":
         print("当前配置文件不是 interval 模式，请用 install_task.ps1 或改配置")
@@ -141,7 +177,7 @@ def main():
     try:
         with open(xml_path, "w", encoding="utf-16", newline="\r\n") as fh:
             fh.write(xml)
-        result = subprocess.call(["schtasks", "/Create", "/TN", args.task, "/XML", xml_path, "/F"])
+        result = run_schtasks(["/Create", "/TN", args.task, "/XML", xml_path, "/F"])
         if result == 0:
             print("已安装任务：%s（%s-%s，每 %d 分钟）" % (args.task, start, end, interval))
             print("手动测试：schtasks /Run /TN \"%s\"" % args.task)
