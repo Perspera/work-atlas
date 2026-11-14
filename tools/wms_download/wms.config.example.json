@@ -3,6 +3,8 @@
   "queryUrl": "",
   "dateMode": "today",
   "dateFormat": "YYYY-MM-DD",
+  "nameWithQueryDate": true,
+  "archiveDir": "downloads",
   "timezone": "Asia/Shanghai",
   "headless": true,
   "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",

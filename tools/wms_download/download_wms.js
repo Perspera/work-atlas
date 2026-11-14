@@ -87,6 +87,27 @@ function formatDate(isoDate, format) {
   return String(format || 'YYYY-MM-DD')
     .replace(/YYYY/g, y).replace(/MM/g, m).replace(/DD/g, d);
 }
+// 交付文件名：把 WMS 导出名末尾的日期（通常是“导出当天”）换成本次查询的订单日期。
+// 例：…(配送中心)-2026-11-14.xlsx + 查询 2026-11-13 -> …(配送中心)-2026-11-13.xlsx
+const DATE_AT_END = /[-_. ]?((?:19|20)\d{2})[-_.]?(\d{1,2})[-_.]?(\d{1,2})$/;
+
+function deliverNameForDate(downloadName, date) {
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? date : localDate(0);
+  const raw = path.basename(String(downloadName || '')).replace(/[\\/:*?"<>|]+/g, '_');
+  const ext = path.extname(raw);
+  let stem = ext ? raw.slice(0, -ext.length) : raw;
+  const hit = DATE_AT_END.exec(stem);
+  if (hit) {
+    const month = Number(hit[2]);
+    const dayOfMonth = Number(hit[3]);
+    if (month >= 1 && month <= 12 && dayOfMonth >= 1 && dayOfMonth <= 31) {
+      stem = stem.slice(0, hit.index);
+    }
+  }
+  stem = stem.replace(/[-_. ]+$/, '') || '导出';
+  return `${stem}-${day}${ext}`;
+}
+
 function pickSearchDate(config, args) {
   if (args.date) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) fail(`日期格式应为 YYYY-MM-DD：${args.date}`);
@@ -861,26 +882,34 @@ async function downloadFlow(config, args, secrets) {
         )).full;
       }
     }
-    log(`下载完成：${path.basename(downloaded)}`);
+    const wmsName = path.basename(downloaded);
+    log(`下载完成：${wmsName}`);
     const stat = validateFile(downloaded, config.validation || {});
     validateHeaders(downloaded, config.validation || {}, config.pythonPath || DEFAULT_PYTHON);
     log(`文件校验通过：${stat.size} 字节`);
 
-    const targetName = path.basename(downloaded);
+    // 文件名后缀固定为本次查询的订单日期：同一日期覆盖更新，不同日期互不影响。
+    // WMS 导出名里的日期是“导出当天”，不替换就会出现“查昨天却把今天的文件覆盖掉”。
+    const targetName = config.nameWithQueryDate === false
+      ? wmsName
+      : deliverNameForDate(wmsName, date);
     let target = path.join(deliverDir, targetName);
     if (fs.existsSync(target) && config.overwriteDeliver === false) {
-      target = path.join(deliverDir, `${path.parse(targetName).name}-${date}${path.extname(targetName)}`);
+      const stamp = nowText().slice(11, 19).replace(/:/g, '');
+      target = path.join(deliverDir, `${path.parse(targetName).name}-${stamp}${path.extname(targetName)}`);
     }
     fs.copyFileSync(downloaded, target);
+    log(`交付文件名：${path.basename(target)}（WMS 原名：${wmsName}）`);
     log(`已交付：${target}`);
     if (keepCopy) {
-      const archiveDir = path.join(ROOT, 'downloads', date);
+      const archiveRoot = resolvePath(config.archiveDir || 'downloads', ROOT);
+      const archiveDir = path.join(archiveRoot, date);
       ensureDir(archiveDir);
-      fs.copyFileSync(downloaded, path.join(archiveDir, `${date}-${targetName}`));
+      fs.copyFileSync(downloaded, path.join(archiveDir, path.basename(target)));
     }
     // 交付目录若是网络盘/本机目录，服务器扫不到，再推一份到服务器数据源目录
     const sync = await pushToServer(target, config, 'deliver');
-    return { date, file: target, size: stat.size, source: downloaded, sync };
+    return { date, file: target, wmsName, size: stat.size, source: downloaded, sync };
   } catch (error) {
     await captureFailure(currentPage, error.message);
     throw error;
@@ -949,7 +978,11 @@ async function main() {
   }
 }
 
-main().then((code) => process.exit(code)).catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exit(error.exitCode || 1);
-});
+if (require.main === module) {
+  main().then((code) => process.exit(code)).catch((error) => {
+    console.error(error && error.stack ? error.stack : error);
+    process.exit(error.exitCode || 1);
+  });
+}
+
+module.exports = { deliverNameForDate, pickSearchDate };

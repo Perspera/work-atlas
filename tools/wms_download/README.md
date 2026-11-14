@@ -116,13 +116,16 @@ run_wms_download.bat --yesterday
 - `"relative"` + `relativeDays: -2`（相对今天）
 - 命令行覆盖：`--date 2026-11-05`、`--today`、`--yesterday`
 
+> 交付文件名按查询日期落盘：默认 `yesterday` 时，每天更新的都是“昨天日期”那个文件；查询今天/固定日期时各日期文件独立，互不覆盖。
+
 ## 5. 下载与交付
 
 - `downloadDir`：临时下载目录（每轮清空，避免把旧文件当新文件）。
 - `deliverDir`：交付目录，默认 `Z:\单据登记\测试`；只是本地留档，交付后随即上传服务器入库（见 5.1）。换成新机器时可改成该机任意本地目录，例如 `D:\wms_deliver`。
-- `keepDownloadCopy`：在 `downloads/YYYY-MM-DD/` 留一份原始下载。
+- `nameWithQueryDate`（默认 `true`）：交付文件名后缀固定为**本次查询的订单日期**。WMS 导出名里的日期是“导出当天”，会被替换成查询日期（查询 2026-11-13 时交付 `【出库】出库流程节点时间跟踪(配送中心)-2026-11-13.xlsx`）；同名只覆盖该日期的文件，不会动其它日期。设为 `false` 可回滚旧命名。
+- `keepDownloadCopy`：在 `downloads/<查询日期>/` 按查询日期命名的文件留一份副本（留档根目录可用 `archiveDir` 改，默认 `downloads`）。
 - `validation.requiredHeaders`：校验 Excel/CSV 必需表头；不通过不会交付。
-- 同日期文件已存在：`overwriteDeliver: true` 覆盖，`false` 自动加日期后缀。
+- 同一查询日期文件已存在：`overwriteDeliver: true`（默认）就地覆盖更新；`false` 时追加 `-HHMMSS` 另存，不覆盖。
 
 ## 5.1 把文件送到服务器（serverSync）
 

@@ -465,7 +465,7 @@ ssh root@8.163.57.96 "ls -lt --time-style=+%F\\ %H:%M /opt/work-atlas/share | he
 ssh root@8.163.57.96 "sqlite3 /opt/work-atlas/shared/data/dashboard.db 'SELECT name,rows,status,imported_at FROM source_files ORDER BY imported_at DESC LIMIT 5;'"
 ```
 
-页面侧：「数据源」页看 **上次扫描**、**数据覆盖范围**，以及「文件台账」里当天文件状态是否为 `ok`；「WMS 自动下载」面板看定时任务状态与最近上传时间。
+页面侧：「数据源」页看 **上次扫描**、**数据覆盖范围**，以及「文件台账」里**查询日期对应**文件的状态是否为 `ok`（WMS 自动下载的文件名后缀=本次查询的订单日期）；「WMS 自动下载」面板看定时任务状态与最近上传时间。
 
 ---
 
