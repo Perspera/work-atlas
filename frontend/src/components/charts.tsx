@@ -13,18 +13,25 @@ echarts.use([EBar, ELine, EPie, EFunnel, GridComponent, TooltipComponent, Legend
 
 const PALETTE = ["#1d5fbf", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0e7490"];
 
-function baseOption(categories: string[], series: Series[], horizontal?: boolean, palette?: string[], showValues?: boolean) {
+function baseOption(
+  categories: string[],
+  series: Series[],
+  horizontal?: boolean,
+  palette?: string[],
+  showValues?: boolean,
+  fontSize = 12,
+) {
   return {
     color: palette?.length ? palette : PALETTE,
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { right: 8, top: 0, type: "scroll", textStyle: { color: "#5b6472" } },
+    legend: { right: 8, top: 0, type: "scroll", textStyle: { color: "#5b6472", fontSize } },
     grid: { left: 12, right: 16, top: 34, bottom: 8, containLabel: true },
     xAxis: horizontal
-      ? { type: "value" }
+      ? { type: "value", axisLabel: { color: "#5b6472", fontSize } }
       : {
           type: "category",
           data: categories,
-          axisLabel: { color: "#5b6472", interval: 0, rotate: categories.length > 10 ? 30 : 0 },
+          axisLabel: { color: "#5b6472", interval: 0, fontSize, rotate: categories.length > 10 ? 30 : 0 },
           axisTick: { show: false },
         },
     yAxis: horizontal
@@ -33,17 +40,17 @@ function baseOption(categories: string[], series: Series[], horizontal?: boolean
           data: categories,
           // ECharts 的类目轴默认把第一项画在最下方；旧版 web/charts.js drawBarH 把第一项画在最上方。
           inverse: true,
-          axisLabel: { color: "#5b6472" },
+          axisLabel: { color: "#5b6472", fontSize },
           axisTick: { show: false },
         }
-      : { type: "value", axisLabel: { color: "#5b6472" }, splitLine: { lineStyle: { color: "#eef1f6" } } },
+      : { type: "value", axisLabel: { color: "#5b6472", fontSize }, splitLine: { lineStyle: { color: "#eef1f6" } } },
     series: series.map((item) => ({
       name: item.name,
       type: horizontal ? "bar" : "bar",
       data: item.values,
       barMaxWidth: 26,
       emphasis: { focus: "series" },
-      label: { show: Boolean(showValues), position: horizontal ? "right" : "top", color: "#5b6472" },
+      label: { show: Boolean(showValues), position: horizontal ? "right" : "top", color: "#5b6472", fontSize },
     })),
   };
 }
@@ -55,6 +62,7 @@ export function BarChart({
   horizontal,
   palette,
   showValues,
+  fontSize,
 }: {
   categories: string[];
   series: Series[];
@@ -62,6 +70,7 @@ export function BarChart({
   horizontal?: boolean;
   palette?: string[];
   showValues?: boolean;
+  fontSize?: number;
 }) {
   if (!categories.length) return <div className="empty">暂无数据</div>;
   return (
@@ -69,7 +78,7 @@ export function BarChart({
       echarts={echarts}
       notMerge
       style={{ height }}
-      option={baseOption(categories, series, horizontal, palette, showValues)}
+      option={baseOption(categories, series, horizontal, palette, showValues, fontSize)}
     />
   );
 }
@@ -80,15 +89,17 @@ export function LineChart({
   height = 240,
   palette,
   showValues,
+  fontSize,
 }: {
   categories: string[];
   series: Series[];
   height?: number | string;
   palette?: string[];
   showValues?: boolean;
+  fontSize?: number;
 }) {
   if (!categories.length) return <div className="empty">暂无数据</div>;
-  const option = baseOption(categories, series, false, palette, showValues);
+  const option = baseOption(categories, series, false, palette, showValues, fontSize);
   const lineOption = {
     ...option,
     series: series.map((item) => ({
@@ -98,7 +109,7 @@ export function LineChart({
       smooth: true,
       symbolSize: 6,
       areaStyle: { opacity: 0.08 },
-      label: { show: Boolean(showValues), position: "top", color: "#5b6472" },
+      label: { show: Boolean(showValues), position: "top", color: "#5b6472", fontSize },
     })),
   };
   return <ReactEChartsCore echarts={echarts} notMerge style={{ height }} option={lineOption} />;
@@ -109,11 +120,13 @@ export function DonutChart({
   height = 240,
   palette,
   showValues,
+  fontSize,
 }: {
   rows: { label: string; value: number }[];
   height?: number | string;
   palette?: string[];
   showValues?: boolean;
+  fontSize?: number;
 }) {
   if (!rows.length) return <div className="empty">暂无数据</div>;
   return (
@@ -124,7 +137,7 @@ export function DonutChart({
       option={{
         color: palette?.length ? palette : PALETTE,
         tooltip: { trigger: "item", formatter: "{b}: {c}（{d}%）" },
-        legend: { orient: "vertical", right: 6, top: "middle", type: "scroll" },
+        legend: { orient: "vertical", right: 6, top: "middle", type: "scroll", textStyle: { fontSize } },
         series: [
           {
             type: "pie",
@@ -135,6 +148,7 @@ export function DonutChart({
               show: Boolean(showValues),
               formatter: "{b} {c}",
               color: "#5b6472",
+              fontSize,
             },
             data: rows.map((row) => ({ name: row.label, value: row.value })),
           },
@@ -148,10 +162,12 @@ export function FunnelChart({
   rows,
   height = 260,
   palette,
+  fontSize,
 }: {
   rows: { label: string; value: number }[];
   height?: number | string;
   palette?: string[];
+  fontSize?: number;
 }) {
   if (!rows.length) return <div className="empty">暂无数据</div>;
   return (
@@ -170,7 +186,7 @@ export function FunnelChart({
             top: 12,
             bottom: 12,
             minSize: "26%",
-            label: { show: true, position: "inside", formatter: "{b} {c}" },
+            label: { show: true, position: "inside", formatter: "{b} {c}", fontSize },
             data: rows.map((row) => ({ name: row.label, value: row.value })),
           },
         ],

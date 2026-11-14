@@ -163,16 +163,18 @@ function SeriesBody({
   type,
   palette,
   showValues,
+  fontSize,
 }: {
   data: Extract<WidgetData, { kind: "series" }>;
   type: string;
   palette?: string[] | null;
   showValues?: boolean;
+  fontSize?: number;
 }) {
   if (type === "pie") {
     const first = data.series[0];
     const rows = data.categories.map((label, index) => ({ label, value: Number(first?.values[index] || 0) }));
-    return <DonutChart rows={rows} height="100%" palette={palette || undefined} showValues={showValues} />;
+    return <DonutChart rows={rows} height="100%" palette={palette || undefined} showValues={showValues} fontSize={fontSize} />;
   }
   if (type === "progress") {
     const rateIndex = data.series.findIndex((item) => item.metric === "out_rate");
@@ -206,7 +208,7 @@ function SeriesBody({
     );
   }
   if (type === "line") {
-    return <LineChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} />;
+    return <LineChart categories={data.categories} series={data.series} height="100%" palette={palette || undefined} showValues={showValues} fontSize={fontSize} />;
   }
   return (
     <BarChart
@@ -216,6 +218,7 @@ function SeriesBody({
       horizontal={data.categories.length > 8}
       palette={palette || undefined}
       showValues={showValues}
+      fontSize={fontSize}
     />
   );
 }
@@ -261,12 +264,14 @@ export function WidgetBody({
   palette,
   showValues,
   title,
+  fontSize,
 }: {
   type: LayoutWidget["type"];
   data: WidgetData;
   palette?: string[] | null;
   showValues?: boolean;
   title?: string;
+  fontSize?: number;
 }) {
   if (data.kind === "text") return <div className="small">{data.text}</div>;
   if (data.kind === "value") {
@@ -289,12 +294,12 @@ export function WidgetBody({
       </>
     );
   }
-  if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" palette={palette || undefined} />;
+  if (data.kind === "funnel") return <FunnelChart rows={data.items} height="100%" palette={palette || undefined} fontSize={fontSize} />;
   if (data.kind === "rows") return <RowsBody data={data} />;
   if (data.kind === "series") {
     // table/detail 也要画成表格：旧版 web/app.js:2916 对这两种类型走 seriesToTable。
     if (type === "table" || type === "detail") return <TableBody data={data} />;
-    return <SeriesBody data={data} type={type} palette={palette} showValues={showValues} />;
+    return <SeriesBody data={data} type={type} palette={palette} showValues={showValues} fontSize={fontSize} />;
   }
   return null;
 }
@@ -304,11 +309,13 @@ export function WidgetCard({
   date,
   mode = "live",
   actions,
+  fontSize,
 }: {
   widget: LayoutWidget;
   date: string;
   mode?: "live" | "archive";
   actions?: ReactNode;
+  fontSize?: number;
 }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["widget", widget.type, widget.id, date, mode, widget.spec],
@@ -333,7 +340,7 @@ export function WidgetCard({
         ) : error ? (
           <div className="widget-error">{(error as Error).message}</div>
         ) : data ? (
-          <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} />
+          <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} fontSize={fontSize} />
         ) : null}
       </div>
     );
@@ -355,7 +362,7 @@ export function WidgetCard({
           ) : error ? (
             <div className="widget-error">{(error as Error).message}</div>
           ) : data ? (
-            <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} />
+            <WidgetBody type={widget.type} data={data} palette={palette} showValues={showValues} title={widget.title} fontSize={fontSize} />
           ) : null}
         </div>
       </div>
@@ -375,6 +382,7 @@ export function WidgetGrid({
   mode = "live",
   rowHeight = ROW_HEIGHT,
   kpiBand = true,
+  fontSize,
 }: {
   layout: Layout;
   date: string;
@@ -382,6 +390,8 @@ export function WidgetGrid({
   rowHeight?: number;
   /** KPI 单独排成 6 列 88px 数字带（与样卡 .kpis 一致）；看板编辑器/大屏用原栅格。 */
   kpiBand?: boolean;
+  /** 图表内文字字号（ECharts 画布渲染，需显式传入才能放大）。 */
+  fontSize?: number;
 }) {
   const widgets = layout.widgets || [];
   if (!widgets.length) return <Empty text="这个页面还没有组件" />;
@@ -405,7 +415,7 @@ export function WidgetGrid({
               height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
             }}
           >
-            <WidgetCard widget={widget} date={date} mode={mode} />
+            <WidgetCard widget={widget} date={date} mode={mode} fontSize={fontSize} />
           </div>
         ))}
       </div>
@@ -423,7 +433,7 @@ export function WidgetGrid({
       {kpis.length > 0 && (
         <div className="kpis" style={{ marginBottom: panels.length ? 12 : 0 }}>
           {kpis.map((widget) => (
-            <WidgetCard key={widget.id} widget={widget} date={date} mode={mode} />
+            <WidgetCard key={widget.id} widget={widget} date={date} mode={mode} fontSize={fontSize} />
           ))}
         </div>
       )}
@@ -442,7 +452,7 @@ export function WidgetGrid({
                   height: widget.h * rowHeight + (widget.h - 1) * ROW_GAP,
                 }}
               >
-                <WidgetCard widget={widget} date={date} mode={mode} />
+                <WidgetCard widget={widget} date={date} mode={mode} fontSize={fontSize} />
               </div>
             );
           })}
